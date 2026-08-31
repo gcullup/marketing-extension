@@ -109,13 +109,28 @@ scroll-the-feed pattern — task 1.1 below is revised accordingly.
   matched exactly the one real button and correctly excluded both hidden decoys, the profile-link
   selector matched exactly Michele's own link and excluded both mutual-friend avatar links, and the
   mutual-friends pattern correctly caught "150 mutual friends". Written into `content/selectors.js`.
-- **Still needed from Greg:** the right-hand detail pane's outerHTML (or at least its
-  bio/work/"Intro" section) after clicking a candidate, so `1.1` can be written against real markup
-  instead of another placeholder.
+**Extraction approach revised (2026-08-31, from Greg):** the old tool did NOT dissect individual
+Intro-box fields (confirmed fragile — Greg pasted one Intro line and it was just "Female", with no
+selector able to distinguish it from a work/location line; Facebook doesn't label these). Instead
+it scraped **all visible text off the scrolled profile page** and let keyword/AI matching find
+industry signal wherever it appeared — often posts, sometimes Intro-box snippets bleeding into the
+main view without visiting the separate `/about` tab. This sidesteps the fragile-field problem
+entirely and matches what already worked before (the confirmed bug was in the *matching* logic,
+not the *extraction* — see [[fb-marketing-extension-rebuild]]'s fuzzy-matching finding). Adopting
+the same raw-text approach here rather than building brittle per-field selectors.
 
-- [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load,
-      scroll it a randomized number of times (mirroring the old tool's 5/15/25 pattern), extract
-      bio/work/about text from the right pane — **blocked on the right-pane DOM sample above**
+**Layout confirmed (2026-08-31):** clicking a candidate's name is a true split view — the
+suggestions list stays visible and clickable the whole time; the URL updates (e.g. to
+`facebook.com/michele.s.bastone`) but nothing is a full navigation away from the list. So there are
+two independent scrollable regions (the candidate list, and the detail pane), not one page scroll.
+**Still needed from Greg:** which actual DOM element scrolls in each region — requested via a
+DevTools console snippet (using Chrome's `$0` "currently selected element" shorthand) rather than
+another large HTML paste, to get a precise, compact answer instead of dissecting a big blob.
+
+- [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
+      (detected via URL change to a bare profile path), scroll its container a randomized number
+      of times (mirroring the old tool's 5/15/25 pattern), then grab all visible text from that
+      pane as one blob (no per-field parsing) — **blocked on identifying the two scroll containers**
 - [ ] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name)
 - [ ] 1.3 Person Ledger written to storage with dedupe (never re-surface a decided person)
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
