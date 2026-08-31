@@ -35,6 +35,45 @@
       });
       return true;
     }
+    if (message?.type === 'TEST_CLICK_FIRST_CANDIDATE') {
+      // Actually clicks the first candidate found and navigates to their
+      // real profile — not read-only like TEST_SCRAPE. Tests whether a
+      // programmatic .click() triggers Facebook's SPA navigation the same
+      // way a real user click does, which isn't a safe assumption to skip.
+      const candidates = MKT.scrape.listCandidates();
+      if (!candidates.length) {
+        sendResponse({ ok: false, reason: 'no candidates found' });
+        return true;
+      }
+      const target = candidates[0];
+      const clickResult = MKT.act.clickCandidate(target.href);
+      if (!clickResult.clicked) {
+        sendResponse({ ok: false, reason: clickResult.reason });
+        return true;
+      }
+      const startedAt = Date.now();
+      const poll = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        if (MKT.scrape.isProfileUrl(location.href)) {
+          clearInterval(poll);
+          sendResponse({
+            ok: true,
+            targetName: target.name,
+            finalUrl: location.href,
+            elapsedMs: elapsed,
+          });
+        } else if (elapsed > 6000) {
+          clearInterval(poll);
+          sendResponse({
+            ok: false,
+            reason: 'timed out waiting for URL to change to a profile',
+            finalUrl: location.href,
+            elapsedMs: elapsed,
+          });
+        }
+      }, 250);
+      return true; // keep the message channel open for the async sendResponse
+    }
     return false;
   });
 })();

@@ -153,8 +153,17 @@ links as "candidates" instead of real ones. **Fixed:** `listCandidates` and
 button — no false positives possible there) and walk up from each button to find its associated
 profile link via `findAncestorContaining`, rather than scanning the whole page for a link pattern
 that turns out not to be unique. Verified against a synthetic page containing both a 4-item fake
-nav bar and one real candidate card — correctly found only the real one. **Still needed: Greg
-reloads and re-runs Test Scrape to confirm this against the actual live page.**
+nav bar and one real candidate card — correctly found only the real one.
+**Confirmed fixed on the live page (2026-08-31):** re-ran Test Scrape — 10 real candidates found
+(Vincent Fitapelli, Peter Hlampeas, Edward Rush Coleman, Mike Perdue, Trevor Pontillo, ...), real
+profile URLs, zero nav-bar false positives, scroll container located. Candidate detection is solid.
+
+**Next unknown to test:** whether a programmatic `link.click()` actually triggers Facebook's SPA
+navigation the same way a real user click does — not safe to assume (some sites gate interactive
+elements on `event.isTrusted`). Added a **"Test Click First Candidate"** button — this one is NOT
+read-only, it actually clicks and navigates to a real profile (harmless, equivalent to Greg
+clicking it himself; does not touch Add Friend). Polls `isProfileUrl` for up to 6s after the click
+and reports elapsed time / success. Pending Greg's test.
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old

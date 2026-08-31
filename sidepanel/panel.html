@@ -29,7 +29,8 @@
         cursor: pointer;
       }
       #pingResult,
-      #scrapeResult {
+      #scrapeResult,
+      #clickResult {
         font-size: 12px;
         color: #555;
         margin-top: 8px;
@@ -50,6 +51,10 @@
       <button id="testScrapeBtn">Test Scrape (read-only — go to facebook.com/friends/suggestions first)</button>
     </p>
     <div id="scrapeResult"></div>
+    <p>
+      <button id="testClickBtn">Test Click First Candidate (navigates to their real profile — no Add Friend click)</button>
+    </p>
+    <div id="clickResult"></div>
     <p><a href="settings.html" target="_blank">Settings</a></p>
     <script type="module" src="panel.js"></script>
   </body>

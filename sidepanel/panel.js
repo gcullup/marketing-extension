@@ -50,4 +50,23 @@ testScrapeBtn.addEventListener('click', async () => {
   });
 });
 
+const testClickBtn = document.getElementById('testClickBtn');
+const clickResult = document.getElementById('clickResult');
+
+testClickBtn.addEventListener('click', async () => {
+  clickResult.textContent = 'Clicking first candidate and waiting for navigation…';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('facebook.com')) {
+    clickResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+    return;
+  }
+  chrome.tabs.sendMessage(tab.id, { type: 'TEST_CLICK_FIRST_CANDIDATE' }, (response) => {
+    if (chrome.runtime.lastError) {
+      clickResult.textContent = `No response: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    clickResult.textContent = JSON.stringify(response, null, 2);
+  });
+});
+
 init();
