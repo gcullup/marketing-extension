@@ -194,8 +194,27 @@ undetectability — the bigger, higher-leverage protection is session-level paci
 spread-over-hours, human-paced gaps between actions), which the architecture already covers. Volume
 and rate matter more than the physics of one scroll gesture.
 
-Pending Greg's retest — specifically whether real bio/industry content now shows up in the
-extracted text preview, and whether the scrolling looks meaningfully more natural.
+**Confirmed fixed and validated end-to-end on the live page (2026-08-31):** re-ran against Giuseppe
+Roberto's profile — real content came through this time: a "Real Estate" category tag, a personal
+website (`giuseppebuyshouses.com`), relationship/family details, mutual friends. List noise
+correctly excluded.
+
+**Full pipeline validated with real captured data, not synthetic:** ran this exact text through
+`lib/fuzzy.js` in a live browser JS engine. "real estate" matched correctly (the category tag).
+"real estate investor" alone did not — a 3-word keyword only compares against 3-word windows, and
+the profile just says the 2-word "Real Estate", so window-length mismatch, not a bug; this is
+exactly why the settings design already has Greg list multiple keyword lengths/variants
+("real estate investor", "REI", "property investor") as separate lines rather than relying on one
+phrase. "buys houses" did not match the domain `giuseppebuyshouses.com` (one unbroken token, no
+spaces to split on) — an acceptable, known limit of the cheap fuzzy tier, which is exactly why the
+AI screening tier exists as the catch-all second pass. Exclude keywords correctly did not
+false-positive. **This is the first fully-real, end-to-end proof of the Step 1 read path.**
+
+- [x] 1.1 (read path) Content script: click candidate, detect navigation via `isProfileUrl`,
+      human-like randomized scroll, extract visible text excluding list noise — **built, verified
+      live against multiple real profiles, and validated end-to-end through the fuzzy matcher**.
+      Remaining for 1.1: the orchestration loop that walks the FULL candidate list (not just the
+      first one) and loads more via `scrollList` as it goes (virtualized-list handling).
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
