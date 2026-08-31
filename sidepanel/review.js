@@ -110,8 +110,19 @@ function renderCard(person) {
     await skipPerson(person.id);
     const removeResult = await tryRemoveFromSuggestions(person.profileUrl);
     await log('info', 'Skipped from review queue', { name: person.name, removeResult });
-    card.remove();
-    updateCount();
+
+    // Show the actual outcome here instead of making it something only
+    // findable by digging through Settings' log viewer — confirmed live
+    // (2026-08-31) that this was real friction, not a hypothetical.
+    statusEl.textContent = removeResult.removed
+      ? 'Skipped — also removed from the suggestions list.'
+      : `Skipped (rejected in the ledger). Suggestions-list cleanup didn't happen: ${
+          removeResult.reason ?? (removeResult.attempted ? 'unknown reason' : 'no suggestions tab open')
+        }.`;
+    setTimeout(() => {
+      card.remove();
+      updateCount();
+    }, 2200);
   });
 
   return card;

@@ -412,6 +412,15 @@ regardless of what ends up in a log's meta (which can include scraped names/AI t
 **Pending: Greg reopens Settings (no need to re-run the skip — the data was already recorded) and
 reports what the log actually says was the real reason Remove declined.**
 
+**Confirmed (2026-08-31):** `{"attempted":true,"reason":"candidate not found in list","removed":false}`
+— exactly the anticipated limitation, not a new bug. A suggestions tab was found, but Deryck Pham's
+row was no longer loaded in the virtualized list by the time he was reviewed (likely well after the
+batch run that screened him). The ledger state change (the part that actually matters) succeeded
+regardless. **UX fix:** Greg had to dig through Settings' log viewer to find this out — the Review
+Queue itself now shows the real outcome directly on Skip ("also removed from the suggestions list"
+vs. the specific reason it couldn't) before the card disappears, instead of requiring a trip
+elsewhere to see what happened.
+
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
