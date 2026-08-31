@@ -5,6 +5,7 @@ Update this file at the end of every working session.
 
 - **Last updated:** 2026-08-31
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
+- **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 0 — Architecture & Setup (no code written yet)
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery)
 
@@ -30,8 +31,8 @@ Update this file at the end of every working session.
 - [x] 0.2 Write ARCHITECTURE.md
 - [x] 0.3 Write WORKFLOW-MAP.md (this file)
 - [x] 0.4 **Move repo out of Google Drive** → now at `C:\dev\marketing-extension`
-- [ ] 0.5 `git init`, `.gitignore`, first commit
-- [ ] 0.6 Create private GitHub repo, push
+- [x] 0.5 `git init`, `.gitignore`, first commit
+- [x] 0.6 Create private GitHub repo, push → https://github.com/gcullup/marketing-extension
 - [ ] 0.7 Extension skeleton: `manifest.json` (MV3), folder layout
 - [ ] 0.8 Load unpacked in Chrome, confirm it appears and the side panel opens
 - [ ] 0.9 Storage layer (`lib/store.js`) — versioned schema, export/import backup
