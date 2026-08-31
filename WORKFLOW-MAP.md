@@ -368,8 +368,14 @@ a strong sign the whole pipeline is healthy: this run produced 4 auto-added and 
 `needs_review` candidates from real, varied profiles — the first batch that looks like genuine
 day-to-day output rather than a test fixture. Noted for later, not urgent: all 4 auto-adds landed
 at exactly 92 confidence, worth watching whether that's a real pattern or coincidence once there's
-more volume. Pending: Greg visually confirms the two removed people are actually gone from the
-live suggestions list, not just that the function returned `true`.
+more volume. **Confirmed visually (2026-08-31) — both removed people are genuinely gone from the
+live suggestions list, not just a truthy return value.** Remove-on-reject fully verified end to end.
+
+**Phase 1 core discovery pipeline: complete and proven against real data.** Scan → tiered screen
+(exclude/exact-include/AI) → confidence-band verdict → Person Ledger with dedupe → auto-remove
+rejects → orchestrated batch loop respecting daily scan limits. Every piece has been tested against
+live Facebook data and real Claude API calls, with three real bugs found and fixed along the way
+(fuzzy-match false negatives, ledger identity collision, batch-aborting AI errors).
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
