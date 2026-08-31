@@ -7,6 +7,7 @@ import { initSettingsIfMissing, getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
 import { matchesAny, matchesAnyExact } from '../lib/fuzzy.js';
 import { screenCandidate } from '../lib/claude.js';
+import { computeVerdict } from '../lib/verdict.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initSettingsIfMissing();
@@ -43,10 +44,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { text, links = [], targetName } = message;
       try {
         const settings = await getSettings();
-        const { includeKeywords, excludeKeywords, targetPersona, claude } = settings;
+        const { includeKeywords, excludeKeywords, targetPersona, claude, confidenceThreshold, rejectFloor } =
+          settings;
 
+        // Exclude and exact-include verdicts are deterministic by design —
+        // not run through computeVerdict's threshold comparison — so they
+        // stay correct regardless of whatever the user sets the sliders to.
         if (matchesAny(text, excludeKeywords)) {
-          const result = { tier: 'exclude', confidence: 0, reasoning: 'Matched an exclude keyword.', signals: [] };
+          const result = {
+            tier: 'exclude',
+            verdict: 'reject',
+            confidence: 0,
+            reasoning: 'Matched an exclude keyword.',
+            signals: [],
+          };
           await log('info', 'Screened candidate — excluded by keyword', { targetName });
           sendResponse({ ok: true, ...result });
           return;
@@ -55,6 +66,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (matchesAnyExact(text, includeKeywords)) {
           const result = {
             tier: 'exact-include',
+            verdict: 'auto-add',
             confidence: 100,
             reasoning: 'Exact include-keyword match — auto-shortlisted without an AI call.',
             signals: [],
@@ -71,8 +83,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           profileText: text,
           links,
         });
-        await log('info', 'Screened candidate — AI call', { targetName, confidence: aiResult.confidence });
-        sendResponse({ ok: true, tier: 'ai', ...aiResult });
+        const verdict = computeVerdict(aiResult.confidence, {
+          autoAddThreshold: confidenceThreshold,
+          rejectFloor,
+        });
+        await log('info', 'Screened candidate — AI call', {
+          targetName,
+          confidence: aiResult.confidence,
+          verdict,
+        });
+        sendResponse({ ok: true, tier: 'ai', verdict, ...aiResult });
       } catch (err) {
         await log('error', 'Screening failed', { targetName, error: err.message });
         sendResponse({ ok: false, error: err.message });

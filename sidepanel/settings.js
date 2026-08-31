@@ -28,6 +28,9 @@ function renderForm(s) {
   $('confidenceThreshold').value = s.confidenceThreshold ?? 90;
   $('confidenceValue').textContent = s.confidenceThreshold ?? 90;
 
+  $('rejectFloor').value = s.rejectFloor ?? 25;
+  $('rejectFloorValue').textContent = s.rejectFloor ?? 25;
+
   for (const day of DAYS) {
     $(`scan-${day}`).value = s.scanLimitsByDay?.[day] ?? 0;
   }
@@ -65,6 +68,7 @@ function collectFromForm() {
     includeKeywords: linesToKeywords($('includeKeywords').value),
     excludeKeywords: linesToKeywords($('excludeKeywords').value),
     confidenceThreshold: toInt($('confidenceThreshold').value, 90),
+    rejectFloor: toInt($('rejectFloor').value, 25),
     scanLimitsByDay,
     caps: {
       maxRequestsPerDay: toInt($('maxRequestsPerDay').value, 15),
@@ -92,6 +96,10 @@ $('confidenceThreshold').addEventListener('input', (e) => {
   $('confidenceValue').textContent = e.target.value;
 });
 
+$('rejectFloor').addEventListener('input', (e) => {
+  $('rejectFloorValue').textContent = e.target.value;
+});
+
 $('autoSend').addEventListener('change', (e) => {
   $('autoSendWarning').style.display = e.target.checked ? 'block' : 'none';
 });
@@ -101,6 +109,12 @@ $('saveBtn').addEventListener('click', async () => {
   if (values.timing.minDelaySeconds > values.timing.maxDelaySeconds) {
     $('saveStatus').style.color = 'crimson';
     $('saveStatus').textContent = 'Min delay must not exceed max delay.';
+    return;
+  }
+  if (values.rejectFloor >= values.confidenceThreshold) {
+    $('saveStatus').style.color = 'crimson';
+    $('saveStatus').textContent =
+      'Auto-deny threshold must be lower than auto-approve threshold, or there is no review band.';
     return;
   }
   await saveSettings(values);

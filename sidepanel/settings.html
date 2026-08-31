@@ -89,7 +89,8 @@
         padding: 6px 8px;
         margin-top: 4px;
       }
-      #confidenceValue {
+      #confidenceValue,
+      #rejectFloorValue {
         font-weight: 600;
       }
       button {
@@ -139,9 +140,13 @@
     <p class="hint">Fuzzy-matched, checked before any AI call — a hit is a permanent reject.</p>
     <textarea id="excludeKeywords"></textarea>
 
-    <label for="confidenceThreshold">AI auto-add confidence threshold: <span id="confidenceValue">90</span>%</label>
-    <p class="hint">Profiles the AI scores at or above this go to the review queue automatically.</p>
-    <input type="range" id="confidenceThreshold" min="50" max="100" step="1" />
+    <label for="confidenceThreshold">Auto-approve at or above: <span id="confidenceValue">90</span>%</label>
+    <p class="hint">Profiles the AI scores at or above this are queued automatically — no manual review needed.</p>
+    <input type="range" id="confidenceThreshold" min="0" max="100" step="1" />
+
+    <label for="rejectFloor">Auto-deny at or below: <span id="rejectFloorValue">25</span>%</label>
+    <p class="hint">Profiles scored at or below this are rejected automatically. Anything strictly between the two thresholds goes to your review queue instead of being decided automatically.</p>
+    <input type="range" id="rejectFloor" min="0" max="100" step="1" />
 
     <h2>Daily Scan Match Limits</h2>
     <p class="hint">How many shortlist matches the scanner collects before stopping, per day of week. Set a day to 0 to skip scanning that day.</p>

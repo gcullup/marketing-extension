@@ -257,10 +257,17 @@ appraisers) — a nuanced judgment no string-matching tier could make. Model use
 `claude-haiku-4-5-20251001` (a sensible cheap/fast choice for high-volume screening). **This is the
 first fully-real, end-to-end proof of the complete screening pipeline**, not just the read path.
 
-**Gap identified, not yet built:** the `SCREEN_CANDIDATE` handler returns the raw AI result but
-does not yet apply the three-band verdict logic (auto-add / middle-band review / reject) from
-ARCHITECTURE.md — Settings currently only has one threshold (the 90% auto-add slider), not a
-separate reject floor needed for the middle band. This is task 1.6, still open.
+**Gap closed (2026-08-31) — task 1.6 done:** added a second Settings slider, "Auto-deny at or
+below" (`rejectFloor`, default 25, per Greg — auto-approve stays 90), plus save-time validation
+that the reject floor must be lower than the auto-approve threshold. `lib/verdict.js` added
+(`computeVerdict`, pure logic) and verified in a live browser JS engine across all boundary cases
+(8→reject, 25→reject, 26→review, 89→review, 90→auto-add, 100→auto-add — inclusive on both
+threshold edges). Wired into `SCREEN_CANDIDATE`: exclude/exact-include tiers get a deterministic
+verdict (`reject`/`auto-add`) rather than running through the threshold comparison, so they stay
+correct regardless of slider settings; the AI tier's confidence now runs through `computeVerdict`.
+Also fixed a leftover copy bug in the existing slider's hint text (it described the exact opposite
+of what auto-approve does). Re-running Jay Fayz's real result (confidence 8) through this now
+correctly yields `verdict: "reject"`.
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old

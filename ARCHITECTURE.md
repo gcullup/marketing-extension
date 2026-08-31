@@ -131,13 +131,18 @@ most reliable checks first:
    of guessed at. Implemented in `lib/claude.js` (the API client) and
    `background/service-worker.js` (the tiering decision — DECIDE, not DO, per the split above).
 
-Confidence bands, not a single threshold:
+Confidence bands, not a single threshold (both edges inclusive, per `lib/verdict.js`):
 
-- `>= auto-add threshold` (user-set, default 90%) → queued automatically for the assisted-click
-  review list
-- **middle band** → still surfaced for human review with the AI's reason attached, rather than
-  silently discarded — this is what a pure high/low cutoff got wrong last time
-- `< reject floor` → permanent `rejected` in the ledger
+- `>= auto-approve threshold` (user-set slider, default 90%) → queued automatically for the
+  assisted-click review list
+- **middle band** (strictly between the two thresholds) → still surfaced for human review with the
+  AI's reason attached, rather than silently discarded — this is what a pure high/low cutoff got
+  wrong last time
+- `<= reject floor` (user-set slider, default 25%) → permanent `rejected` in the ledger
+
+Exclude-keyword and exact-include-keyword tiers get a deterministic verdict (`reject` /
+`auto-add`) rather than running through this comparison at all, so they stay correct no matter
+where the sliders are set.
 
 The golden set (see below) must include known misspelling/variant cases from this exact bug class,
 so a future prompt change can't reintroduce it silently.
