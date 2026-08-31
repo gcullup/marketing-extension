@@ -1,5 +1,6 @@
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
+import { getAllPeople } from '../lib/ledger.js';
 
 const statusEl = document.getElementById('status');
 const pingBtn = document.getElementById('pingBtn');
@@ -116,6 +117,7 @@ testAiScreenBtn.addEventListener('click', async () => {
         text: scrapeResponse.text,
         links: scrapeResponse.links,
         targetName: scrapeResponse.targetName,
+        profileUrl: scrapeResponse.finalUrl,
       },
       (screenResponse) => {
         if (chrome.runtime.lastError) {
@@ -130,6 +132,24 @@ testAiScreenBtn.addEventListener('click', async () => {
       }
     );
   });
+});
+
+const viewLedgerBtn = document.getElementById('viewLedgerBtn');
+const ledgerResult = document.getElementById('ledgerResult');
+
+viewLedgerBtn.addEventListener('click', async () => {
+  const people = await getAllPeople();
+  if (!people.length) {
+    ledgerResult.textContent = 'Ledger is empty — no one has been screened yet.';
+    return;
+  }
+  const summary = people.map((p) => ({
+    name: p.name,
+    state: p.state,
+    tier: p.screening?.tier,
+    confidence: p.screening?.confidence,
+  }));
+  ledgerResult.textContent = `${people.length} record(s):\n${JSON.stringify(summary, null, 2)}`;
 });
 
 init();

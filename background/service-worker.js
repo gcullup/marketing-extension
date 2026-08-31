@@ -8,6 +8,7 @@ import { log } from '../lib/log.js';
 import { matchesAny, matchesAnyExact } from '../lib/fuzzy.js';
 import { screenCandidate } from '../lib/claude.js';
 import { computeVerdict } from '../lib/verdict.js';
+import { extractProfileId, getPerson, recordScreening } from '../lib/ledger.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initSettingsIfMissing();
@@ -41,8 +42,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     //      literal string match — this is what actually catches cases like
     //      a personal business website or a typo'd occupation.
     (async () => {
-      const { text, links = [], targetName } = message;
+      const { text, links = [], targetName, profileUrl } = message;
+      const id = profileUrl ? extractProfileId(profileUrl) : null;
+
+      // Record the result to the Person Ledger and respond — the one path
+      // every branch below funnels through, so dedupe/history/state is
+      // handled identically regardless of which tier decided the verdict.
+      async function finalize(result) {
+        await log('info', `Screened candidate — ${result.tier}`, {
+          targetName,
+          verdict: result.verdict,
+          confidence: result.confidence,
+        });
+        if (!id) {
+          sendResponse({ ok: true, ledgerState: null, ledgerNote: 'no stable profile id — not recorded', ...result });
+          return;
+        }
+        const record = await recordScreening({ id, name: targetName, profileUrl }, result);
+        sendResponse({ ok: true, ledgerState: record.state, ...result });
+      }
+
       try {
+        // Dedupe: if this person was already screened before, don't waste
+        // another AI call (or even re-run the keyword tiers) — the ledger
+        // exists specifically so a decided person is never re-litigated.
+        if (id) {
+          const existing = await getPerson(id);
+          if (existing?.screening) {
+            await log('info', 'Screening skipped — already in ledger', { targetName, state: existing.state });
+            sendResponse({ ok: true, ledgerState: existing.state, fromCache: true, ...existing.screening });
+            return;
+          }
+        }
+
         const settings = await getSettings();
         const { includeKeywords, excludeKeywords, targetPersona, claude, confidenceThreshold, rejectFloor } =
           settings;
@@ -51,28 +83,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // not run through computeVerdict's threshold comparison — so they
         // stay correct regardless of whatever the user sets the sliders to.
         if (matchesAny(text, excludeKeywords)) {
-          const result = {
+          await finalize({
             tier: 'exclude',
             verdict: 'reject',
             confidence: 0,
             reasoning: 'Matched an exclude keyword.',
             signals: [],
-          };
-          await log('info', 'Screened candidate — excluded by keyword', { targetName });
-          sendResponse({ ok: true, ...result });
+          });
           return;
         }
 
         if (matchesAnyExact(text, includeKeywords)) {
-          const result = {
+          await finalize({
             tier: 'exact-include',
             verdict: 'auto-add',
             confidence: 100,
             reasoning: 'Exact include-keyword match — auto-shortlisted without an AI call.',
             signals: [],
-          };
-          await log('info', 'Screened candidate — exact include match', { targetName });
-          sendResponse({ ok: true, ...result });
+          });
           return;
         }
 
@@ -87,12 +115,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           autoAddThreshold: confidenceThreshold,
           rejectFloor,
         });
-        await log('info', 'Screened candidate — AI call', {
-          targetName,
-          confidence: aiResult.confidence,
-          verdict,
-        });
-        sendResponse({ ok: true, tier: 'ai', verdict, ...aiResult });
+        await finalize({ tier: 'ai', verdict, ...aiResult });
       } catch (err) {
         await log('error', 'Screening failed', { targetName, error: err.message });
         sendResponse({ ok: false, error: err.message });

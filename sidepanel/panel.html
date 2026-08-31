@@ -32,12 +32,15 @@
       #scrapeResult,
       #clickResult,
       #fullScrapeResult,
-      #aiScreenResult {
+      #aiScreenResult,
+      #ledgerResult {
         font-size: 12px;
         color: #555;
         margin-top: 8px;
         word-break: break-word;
         white-space: pre-wrap;
+        max-height: 240px;
+        overflow-y: auto;
       }
       a {
         font-size: 12px;
@@ -65,6 +68,10 @@
       <button id="testAiScreenBtn">Test AI Screening (needs a Claude API key in Settings first)</button>
     </p>
     <div id="aiScreenResult"></div>
+    <p>
+      <button id="viewLedgerBtn">View Ledger</button>
+    </p>
+    <div id="ledgerResult"></div>
     <p><a href="settings.html" target="_blank">Settings</a></p>
     <script type="module" src="panel.js"></script>
   </body>

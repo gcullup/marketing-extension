@@ -276,8 +276,18 @@ correctly yields `verdict: "reject"`.
       scroll → extract → move to next candidate**, which belongs in the background service worker
       per the DECIDE/DO split, plus a real answer for "how do we know the profile finished loading"
       (candidate: poll until extracted text stops growing, or a fixed delay — untested either way)
-- [ ] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name)
-- [ ] 1.3 Person Ledger written to storage with dedupe (never re-surface a decided person)
+- [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
+      `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
+      browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
+      param and one reserved (non-profile) path correctly returning `null`.
+- [x] 1.3 Person Ledger written to storage with dedupe (never re-surface a decided person) —
+      `recordScreening` derives ledger state from the verdict (deterministic `reject`/`auto-add`
+      for exclude/exact-include, `computeVerdict` for the AI tier), verified against all three
+      verdict values. Wired into `SCREEN_CANDIDATE`: a person already in the ledger is now returned
+      from cache (`fromCache: true`) instead of re-running keyword tiers or spending another AI
+      call — the actual dedupe payoff. Added a "View Ledger" button to the side panel to inspect
+      what's recorded. **Pending: Greg re-tests AI Screening twice in a row on the same candidate
+      to confirm the second run comes back from cache.**
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
 - [ ] 1.5 Claude screening call for the remainder — batched, structured `{confidence, reason}`,
       prompt explicitly instructs typo/variant tolerance

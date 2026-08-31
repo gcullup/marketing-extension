@@ -61,28 +61,33 @@ One record per human, ever. Every feature in the system is a **query over this o
 
 ```
 discovered
-  → ai_screened   { fit: 0-100, industry_guess, reason }
-  → rejected      (permanent — never surface this person again)
-  → queued
-  → requested     { date }
-       → pending
-       → accepted { date }
-       → cancelled
-       → expired
+  → rejected       (exclude match, or AI verdict ≤ reject floor — permanent, never resurfaced)
+  → needs_review   (AI verdict in the middle band — surfaced for human approve/skip)
+  → queued         (exact-include match, or AI verdict ≥ auto-approve threshold)
+       → requested { date }
+            → pending
+            → accepted { date }
+            → cancelled
+            → expired
   → dm_queued
-  → dm_sent       { date, message }
+  → dm_sent        { date, message }
   → replied
 ```
 
-Record shape:
+Implemented in `lib/ledger.js`. Record shape (as actually built, not speculative):
 
 ```js
 {
-  id,              // stable: profile URL/ID. NEVER the display name.
-  name, headline, city, mutualCount, profileUrl, workInfo,
-  state,           // from the machine above
-  fit, industryGuess, aiReason, aiModel, aiCallId,
-  requestedAt, acceptedAt, dmSentAt,
+  id,              // stable: the profile URL's username slug, lowercased. NEVER the display name.
+  name, profileUrl,
+  state,           // from the machine above — STATES constant in lib/ledger.js
+  discoveredAt,
+  screening: {
+    tier,          // 'exclude' | 'exact-include' | 'ai'
+    verdict,       // 'reject' | 'review' | 'auto-add'
+    confidence, reasoning, signals, model, screenedAt,
+  },
+  requestedAt, acceptedAt, dmSentAt,   // populated by later steps, not yet built
   history: []      // append-only state transitions with timestamps
 }
 ```
