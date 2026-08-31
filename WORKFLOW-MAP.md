@@ -36,19 +36,31 @@ Update this file at the end of every working session.
 - [x] 0.7 Extension skeleton: `manifest.json` (MV3), folder layout — manifest, background service
       worker, content scripts (selectors/scrape/act placeholders, wired for messaging), side
       panel with a live storage + content-script ping test, settings placeholder
-- [ ] 0.8 Load unpacked in Chrome, confirm it appears and the side panel opens
-- [ ] 0.9 Storage layer (`lib/store.js`) — versioned schema, export/import backup
-- [ ] 0.10 Logger (`lib/log.js`) — every action + every AI call recorded, viewable & exportable
-- [ ] 0.11 Settings page — target persona description, include/exclude keyword lists, daily scan
+- [x] 0.8 Load unpacked in Chrome, confirm it appears and the side panel opens — verified: side
+      panel loaded storage defaults, and the ping round-trip (panel → content script → panel)
+      correctly returned the live facebook.com page's URL and title
+- [x] 0.9 Storage layer (`lib/store.js`) — versioned schema, export/import backup (built alongside skeleton)
+- [x] 0.10 Logger (`lib/log.js`) — ring buffer, recorded + exportable via storage dump; a viewer UI
+      piggybacks on the settings page (step 0.12)
+- [x] 0.11 `lib/fuzzy.js` — fuzzy string matching for include/exclude keyword tiers, fixing the
+      confirmed root cause of the prior build's false negatives. Verified in a live browser JS
+      engine against the exact reported bug case ("real estatte investor" → matches "real estate
+      investor" at ~95% similarity) plus 5 other include/exclude/no-match cases — 6/6 passed.
+      Pure logic, no chrome.* dependency, so it's testable in isolation.
+- [ ] 0.12 Settings page — target persona description, include/exclude keyword lists, daily scan
       match limits per day of week, send caps (requests/day, messages/day), timing (min/max delay,
       spread-over-hours), message templates (`{firstName}` token), API key, model ID, confidence
       threshold slider, Test Mode toggle, auto-send toggle
-- [ ] 0.12 Claude API client (`lib/claude.js`) — structured output, validation, retry, response cache
-- [ ] 0.13 `lib/fuzzy.js` — fuzzy string matching for include/exclude keyword tiers (fixes the
-      confirmed root cause of the prior build's false negatives on typos/variants)
-- [ ] 0.14 `selectors.js` — ALL Facebook DOM selectors isolated in one file
+- [ ] 0.13 Claude API client (`lib/claude.js`) — structured output, validation, retry, response cache
+- [ ] 0.14 `selectors.js` — ALL Facebook DOM selectors isolated in one file (currently placeholders,
+      see content/selectors.js — unverified against the live DOM)
 - [ ] 0.15 **"Diagnose" self-test button** — checks every selector against the live page, reports which broke
 - [ ] 0.16 **Test Mode** — full pipeline runs (scan → fuzzy match → AI score → queue) without ever clicking Add Friend or Send
+
+**Note on Node.js:** this machine has no Node.js installed. Not a blocker — this extension
+deliberately uses plain browser-native ES modules with no build step or bundler, so nothing here
+requires it. `lib/fuzzy.js` was verified by running its real source in a live browser JS engine
+instead. Flagging only so it doesn't surprise anyone reaching for `npm` later.
 
 ---
 
