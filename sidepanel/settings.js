@@ -162,9 +162,18 @@ $('importFile').addEventListener('change', async (e) => {
 async function renderLogs() {
   const entries = await getLogs();
   const recent = entries.slice(-20).reverse();
+  // The `meta` object (e.g. a Remove attempt's actual reason) was always
+  // being recorded, but this viewer only ever showed the bare message —
+  // the real diagnostic detail was sitting in storage, invisible in the UI.
+  // Using textContent (not innerHTML) even though meta can carry scraped
+  // names/AI text, so this stays safe regardless of what it contains.
   $('logList').textContent = recent.length
     ? recent
-        .map((e) => `[${new Date(e.ts).toLocaleString()}] ${e.level.toUpperCase()}  ${e.message}`)
+        .map((e) => {
+          const base = `[${new Date(e.ts).toLocaleString()}] ${e.level.toUpperCase()}  ${e.message}`;
+          const hasMeta = e.meta && Object.keys(e.meta).length > 0;
+          return hasMeta ? `${base}\n    ${JSON.stringify(e.meta)}` : base;
+        })
         .join('\n')
     : 'No log entries yet.';
 }

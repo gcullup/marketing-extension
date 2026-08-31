@@ -399,7 +399,18 @@ live Facebook data and real Claude API calls, with three real bugs found and fix
       an `<img onerror>` name, a `<script>` in the reasoning, and an `<svg onload>` signal — none
       executed, all rendered as inert literal text, and the actual DOM contained zero injected
       `<img>`/`<script>`/`<svg>` elements.
-      **Pending: Greg opens the Review Queue and tries Approve/Skip against real accumulated data.**
+**Retest, per Greg (2026-08-31):** Approve worked (no Add Friend click expected — that's correctly
+task 1.9's job, not built yet; Approve only ever moves someone to `queued`). Skip's best-effort
+Remove did NOT visibly remove the person from the list. Investigated via the log rather than
+guessing — and found a **real, separate gap**: the log viewer in Settings only ever displayed the
+bare message text, never the `meta` object attached to it. The actual `removeResult` (the real
+reason Remove declined — stale tab, candidate not currently in the DOM, etc.) was being recorded
+correctly the whole time; the viewer just never surfaced it, so this diagnostic path Greg was asked
+to check was silently broken. **Fixed:** `renderLogs` in `settings.js` now appends `meta` as a
+second indented line when present, using `textContent` (not `innerHTML`) so this stays safe
+regardless of what ends up in a log's meta (which can include scraped names/AI text).
+**Pending: Greg reopens Settings (no need to re-run the skip — the data was already recorded) and
+reports what the log actually says was the real reason Remove declined.**
 
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
