@@ -146,6 +146,7 @@
 
         const listContainer = MKT.scrape.getListScrollContainer();
         const text = MKT.scrape.extractVisibleText(listContainer);
+        const links = MKT.scrape.extractExternalLinks(listContainer);
         sendResponse({
           ok: true,
           targetName: target.name,
@@ -153,6 +154,8 @@
           navElapsedMs,
           scrollCount: chosenScrollCount,
           excludedListNoise: !!listContainer,
+          text,
+          links,
           textLength: text.length,
           textPreview: text.slice(0, 500),
         });

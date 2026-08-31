@@ -88,4 +88,48 @@ testFullScrapeBtn.addEventListener('click', async () => {
   });
 });
 
+const testAiScreenBtn = document.getElementById('testAiScreenBtn');
+const aiScreenResult = document.getElementById('aiScreenResult');
+
+testAiScreenBtn.addEventListener('click', async () => {
+  aiScreenResult.textContent = 'Scraping first candidate (click + scroll + extract)…';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('facebook.com')) {
+    aiScreenResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+    return;
+  }
+
+  chrome.tabs.sendMessage(tab.id, { type: 'TEST_FULL_CANDIDATE_SCRAPE' }, (scrapeResponse) => {
+    if (chrome.runtime.lastError) {
+      aiScreenResult.textContent = `No response from content script: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    if (!scrapeResponse?.ok) {
+      aiScreenResult.textContent = `Scrape failed: ${scrapeResponse?.reason ?? 'unknown error'}`;
+      return;
+    }
+
+    aiScreenResult.textContent = `Scraped ${scrapeResponse.targetName}. Screening (exclude → exact-include → AI)…`;
+    chrome.runtime.sendMessage(
+      {
+        type: 'SCREEN_CANDIDATE',
+        text: scrapeResponse.text,
+        links: scrapeResponse.links,
+        targetName: scrapeResponse.targetName,
+      },
+      (screenResponse) => {
+        if (chrome.runtime.lastError) {
+          aiScreenResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
+          return;
+        }
+        aiScreenResult.textContent = JSON.stringify(
+          { targetName: scrapeResponse.targetName, finalUrl: scrapeResponse.finalUrl, ...screenResponse },
+          null,
+          2
+        );
+      }
+    );
+  });
+});
+
 init();

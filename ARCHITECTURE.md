@@ -103,21 +103,33 @@ decay.
 
 Confirmed root cause of the prior build's decay: the AI screening step produced **false
 negatives** on misspelled or variant phrasing — e.g. "real estatte investor" scored as no match
-against "real estate investor" — rather than applying fuzzy tolerance. The fix is a three-tier
-pipeline, cheapest and most reliable checks first:
+against "real estate investor" — rather than applying fuzzy tolerance.
 
-1. **Include-keyword shortlist (fuzzy, no AI).** User-defined include keywords are matched against
-   profile text with **fuzzy string comparison** (edit-distance / trigram similarity, not exact
-   substring), so "real estatte investor" still matches "real estate investor". A hit shortlists
-   the profile immediately at zero AI cost.
-2. **Exclude-keyword hard skip (fuzzy, no AI).** Checked next, also fuzzy, also before any AI
-   call — e.g. "hard money lender", "mortgage broker". A hit is a permanent reject regardless of
-   anything else. Runs before AI specifically to avoid paying for a call on an obvious non-match.
-3. **AI persona scoring — only for what's left.** Profiles that neither matched nor were excluded
-   go to Claude with the user's target-persona description. The prompt explicitly instructs the
-   model to tolerate typos, abbreviations, and phrasing variants, and must return structured
-   `{confidence: 0-100, reason}` — never a bare yes/no. Every call and its response is logged, so a
-   disputed rejection is always auditable instead of guessed at.
+**Revised 2026-08-31**, per Greg: the point of screening isn't literal keyword matching at all —
+it's an AI forming a holistic judgment about a profile the way a person skimming it would ("oh,
+Giuseppe Roberto links to giuseppebuyshouses.com — strong signal he's a real estate investor"),
+using keyword matching only as a cheap free pass for the obvious cases. The pipeline, cheapest and
+most reliable checks first:
+
+1. **Exclude-keyword hard skip (fuzzy, no AI).** Checked first — e.g. "hard money lender",
+   "mortgage broker" — fuzzy-matched (typo-tolerant), a hit is a permanent reject regardless of
+   anything else. Pure cost-saving: runs before any AI call so an obvious non-match never costs
+   anything. A false exclude just skips someone, a cheaper mistake than a wasted API call.
+2. **Include-keyword shortlist — EXACT match only, no AI.** A verbatim (case/punctuation-insensitive)
+   match against the user's include list is a free instant shortlist. Anything short of exact —
+   typos, phrasing variants, zero literal overlap — always falls through to step 3. This is a
+   cleaner fix for the original false-negative bug than trying to make fuzzy string matching smart
+   enough to approximate human judgment: edit distance cannot understand that a squished domain
+   name or an indirect clue is relevant, but the AI can.
+3. **AI persona scoring — for everything else, always with links called out explicitly.** Profiles
+   that weren't excluded or exactly matched go to Claude with the target-persona description, the
+   full extracted profile text, AND a separate, explicit list of the profile's external links (a
+   personal business website is a far stronger signal surfaced this way than left buried in a wall
+   of text). The prompt instructs the model to judge holistically — not search for keywords — and
+   must return structured `{confidence: 0-100, reasoning, signals}`, never a bare yes/no or free
+   text. Every call and its response is logged, so a disputed rejection is always auditable instead
+   of guessed at. Implemented in `lib/claude.js` (the API client) and
+   `background/service-worker.js` (the tiering decision — DECIDE, not DO, per the split above).
 
 Confidence bands, not a single threshold:
 

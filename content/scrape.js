@@ -121,4 +121,34 @@
     excludeEl.style.visibility = prevVisibility;
     return text;
   };
+
+  // A personal business website (verified live: giuseppebuyshouses.com) is a
+  // far stronger, less ambiguous signal than anything in the free-text blob
+  // — worth surfacing to the AI as its own explicit field rather than hoping
+  // it's noticed inside a wall of text. `excludeEl` filters out the
+  // persistent list's own links (a[href] isn't affected by the
+  // visibility-hiding trick used above, so this checks DOM containment
+  // directly instead). Facebook's own domains are filtered out since
+  // they're internal chrome, not a signal about the person.
+  const FACEBOOK_HOST_SUFFIXES = ['facebook.com', 'fb.com', 'fb.watch', 'fbcdn.net'];
+  function isFacebookHost(hostname) {
+    const host = hostname.replace(/^www\./, '');
+    return FACEBOOK_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith('.' + suffix));
+  }
+
+  MKT.scrape.extractExternalLinks = function (excludeEl) {
+    const anchors = document.querySelectorAll('a[href]');
+    const externalHrefs = new Set();
+    for (const a of anchors) {
+      if (excludeEl && excludeEl.contains(a)) continue;
+      try {
+        const u = new URL(a.href);
+        if (isFacebookHost(u.hostname)) continue;
+        externalHrefs.add(u.origin + u.pathname.replace(/\/$/, ''));
+      } catch {
+        // Ignore unparseable hrefs (e.g. javascript:void(0)).
+      }
+    }
+    return [...externalHrefs];
+  };
 })();

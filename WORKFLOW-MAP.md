@@ -216,6 +216,39 @@ false-positive. **This is the first fully-real, end-to-end proof of the Step 1 r
       Remaining for 1.1: the orchestration loop that walks the FULL candidate list (not just the
       first one) and loads more via `scrollList` as it goes (virtualized-list handling).
 
+**Screening tier design corrected (2026-08-31), per Greg:** "fuzzy match" as originally built
+missed the point — what Greg actually wants is the AI reading the *totality* of a profile
+holistically ("oh, Giuseppe Roberto links to giuseppebuyshouses.com — strong signal he's a real
+estate investor"), not string-distance tricks trying to approximate that. Revised design:
+- **Exclude keywords:** stay fuzzy-matched (typo-tolerant) — pure cost-saving hard-skip before any
+  AI call. Unchanged; this side wasn't part of the correction.
+- **Include keywords:** now EXACT match only — a free instant shortlist, no AI call. Anything short
+  of exact (typos, phrasing variants, zero literal overlap) always falls through to the AI. This is
+  a cleaner fix for the original false-negative bug than leaning on fuzzy matching for includes:
+  edit distance can't understand a squished domain name or an indirect clue, but the AI can.
+  `matchesAnyExact`/`exactIncludes` added to `lib/fuzzy.js`.
+- **AI call always receives extracted external links as an explicit, separate field**, not just
+  buried in the text blob — a personal business website is a much stronger, more legible signal
+  surfaced this way. `MKT.scrape.extractExternalLinks` added to `content/scrape.js` (filters out
+  Facebook's own domains and the persistent list's own links), verified in a live browser JS engine
+  against a synthetic page containing list noise, Facebook-internal links, and one real external
+  link — correctly kept only the real one.
+- **`lib/claude.js` built**: real Anthropic Messages API client, forced tool-use for structured
+  output (`{confidence, reasoning, signals}`), throws rather than fabricating a result on any
+  failure (missing key, network error, schema mismatch) — same discipline as the rest of the
+  Claude integration (see ARCHITECTURE.md).
+- **Tiering logic now lives in `background/service-worker.js`** (`SCREEN_CANDIDATE` message
+  handler) — exclude → exact-include → AI, in that order — matching the DECIDE/DO split: content
+  script only scrapes raw text/links, background owns the decision.
+- **Verified against real Giuseppe Roberto data**: his real captured text does NOT exactly match
+  Greg's actual include list (`real estate investor`, `REI`, `property investor`) — confirmed it
+  correctly falls through to the AI tier rather than either false-approving or staying silent.
+  Giuseppe is exactly the case this redesign targets.
+- **Added "Test AI Screening" button** to the side panel — chains the existing full-candidate
+  scrape into the new `SCREEN_CANDIDATE` background logic and displays the tier + result.
+  **Pending: Greg adds a real Claude API key + model to Settings, then tests live** — this is the
+  first piece that needs a real API key; nothing so far has required one.
+
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
       tool's 5/15/25 pattern), then grab all visible text from that pane as one blob — primitives
