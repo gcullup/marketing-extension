@@ -221,6 +221,10 @@
       })();
       return true;
     }
+    if (message?.type === 'REMOVE_CANDIDATE') {
+      sendResponse(MKT.act.removeCandidate(message.href, message.testMode));
+      return true;
+    }
     return false;
   });
 })();

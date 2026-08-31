@@ -227,12 +227,29 @@ async function runDiscoveryBatch(tabId) {
         targetName: candidate.name,
         profileUrl: scrapeResult.finalUrl,
       });
+
+      // Per Greg's design (2026-08-31): a fresh reject dismisses the
+      // suggestion via Facebook's own "Remove" affordance, so rejected
+      // people stop cluttering future scans. Only for a FRESH reject, not a
+      // cached one — a cache hit means this was already attempted on an
+      // earlier run.
+      let removed;
+      if (screenResult.verdict === 'reject') {
+        const removeResult = await sendToTab(tabId, {
+          type: 'REMOVE_CANDIDATE',
+          href: candidate.href,
+          testMode: settings.testMode,
+        });
+        removed = removeResult.removed;
+      }
+
       results.push({
         name: candidate.name,
         tier: screenResult.tier,
         verdict: screenResult.verdict,
         confidence: screenResult.confidence,
         ledgerState: screenResult.ledgerState,
+        removed,
       });
       newlyScreened++;
     } catch (err) {

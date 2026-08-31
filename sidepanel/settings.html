@@ -148,8 +148,8 @@
     <p class="hint">Profiles scored at or below this are rejected automatically. Anything strictly between the two thresholds goes to your review queue instead of being decided automatically.</p>
     <input type="range" id="rejectFloor" min="0" max="100" step="1" />
 
-    <h2>Daily Scan Match Limits</h2>
-    <p class="hint">How many shortlist matches the scanner collects before stopping, per day of week. Set a day to 0 to skip scanning that day.</p>
+    <h2>Daily Scan Limits</h2>
+    <p class="hint">Total profiles evaluated per day, regardless of outcome (rejected, needs review, or auto-approved) — not how many friend requests get sent. Set much higher than your send limits below, since most scanned profiles won't become requests. Set a day to 0 to skip scanning that day.</p>
     <div class="day-row">
       <div><label>Sun</label><input type="number" id="scan-sun" min="0" /></div>
       <div><label>Mon</label><input type="number" id="scan-mon" min="0" /></div>

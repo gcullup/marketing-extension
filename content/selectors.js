@@ -29,6 +29,13 @@
     candidateProfileLink:
       'a[role="link"][aria-label]:not([aria-label^="Profile picture of"])',
 
+    // Same decoy pattern as Add Friend: a hidden aria-hidden/tabindex="-1"
+    // copy exists alongside the real one. The aria-label is dynamic
+    // ("Remove <person's name>"), so this matches by prefix rather than an
+    // exact string — verified against a synthetic two-person page with
+    // decoys present for both.
+    removeButton: '[aria-label^="Remove "][role="button"]:not([aria-hidden="true"])',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

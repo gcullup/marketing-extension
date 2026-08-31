@@ -46,7 +46,10 @@
 
   // Walks up from `startEl` looking for the nearest ancestor whose subtree
   // contains an element matching `matchSelector`. Bounded so a missing match
-  // can't walk all the way to <html>.
+  // can't walk all the way to <html>. Exposed on MKT (not just local to this
+  // file) since act.js needs the identical pattern to find a specific
+  // candidate's Remove button, and duplicating this logic risks the two
+  // copies drifting apart.
   function findAncestorContaining(startEl, matchSelector, maxDepth = 10) {
     let el = startEl;
     for (let i = 0; i < maxDepth && el; i++) {
@@ -57,6 +60,7 @@
     }
     return null;
   }
+  MKT._findAncestorContaining = findAncestorContaining;
 
   // Anchored on the Add Friend button, not the profile link — Facebook's own
   // top nav (Home, Reels, Groups, Gaming, ...) also uses

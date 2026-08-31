@@ -329,6 +329,31 @@ both fixed:
 
 **Pending: Greg re-runs a batch and confirms (a) previously wrongly-skipped numeric-ID profiles
 now get properly screened, and (b) a batch survives a single flaky AI response without aborting.**
+
+**Confirmed: all fixes hold under a real, larger batch (2026-08-31).** Ran with a limit of 10 — 16
+candidates walked, correctly stopped at exactly 10 newly-screened, Jay Carrillo's flaky response
+this time errored and the batch continued past him instead of aborting, and the previously-mis-IDed
+numeric-ID profiles (Andrew Lee, Angel Ramos) both got real screenings this time
+(reject/25, review/72) instead of a false skip. All three of today's fixes hold.
+
+**Scope clarification from this run, per Greg:** the batch's `dailyLimit` (from `scanLimitsByDay`)
+was being read as if it meant "friend requests to send," when it's actually always meant "total
+profiles scanned" — a real, much bigger number, deliberately decoupled from send volume. See
+ARCHITECTURE.md's new "Scan volume vs. send volume vs. the queue" section for the full three-tier
+spec (scanned → queued → sent) this defines for tasks 1.7/1.9/1.10. Fixed today: `scanLimitsByDay`'s
+Settings label/hint rewritten to be unambiguous, and its **default** (new installs / Reset to
+Defaults only — Greg's live configured values were never touched) raised from ~10-25/day to 80/day
+to reflect the real intended scale.
+
+**New feature built, per Greg: reject → Remove from suggestions.** `MKT.act.removeCandidate`
+added to `content/act.js`, using the real "Remove" button markup verified all the way back from
+Greg's very first paste this session — scoped to the specific candidate (walks up from their own
+profile link, exactly like the Add Friend button pattern), verified against a synthetic two-person
+page that it can't cross-wire and click the wrong person's Remove button, and correctly avoids the
+same hidden-decoy trap as Add Friend. Wired into `runDiscoveryBatch`: fires immediately after a
+*fresh* reject verdict (not a cached one), gated by Test Mode like every other real click.
+**Pending: Greg confirms live that a rejected candidate actually disappears from the suggestions
+list.**
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
