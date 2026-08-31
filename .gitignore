@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+# Never commit the Claude API key or any exported ledger backup containing prospect data
+config.local.json
+*.ledger-backup.json

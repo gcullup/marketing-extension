@@ -1,0 +1,258 @@
+# Architecture — Facebook Marketing Extension
+
+Chrome extension (Manifest V3) that acts as a **cockpit over Facebook** for The Numbers Guy, LLC's
+outbound social marketing. It is a human-in-the-loop daily driver, not an unattended bot.
+
+---
+
+## Governing principle: separate DECIDING from DOING
+
+The single most important structural decision. Two independent halves:
+
+| | **Decide** | **Do** |
+|---|---|---|
+| What it is | Scrape signals, ask Claude, score, queue | Click buttons, type into composers |
+| Where it lives | Service worker + `lib/claude.js` | Content script + `selectors.js` |
+| Failure mode | Bad AI judgment | Facebook changed its HTML |
+| Cost of failure | Wasted API spend, bad targets | Silent no-ops, or wrong clicks |
+
+**Why this matters:** the previous build "started returning bad results" with no way to tell which
+half was at fault. When they are separate and both are logged, a failure becomes a two-minute
+diagnosis instead of a rebuild.
+
+---
+
+## Component map
+
+```
+marketing-extension/
+├── manifest.json              MV3 manifest, permissions, side panel registration
+├── background/
+│   └── service-worker.js      Orchestrator. Queue state machine, quotas, rate limits.
+│                              Knows NOTHING about the DOM.
+├── content/
+│   ├── content.js             Injected into facebook.com. The ONLY DOM toucher.
+│   ├── selectors.js           *** ALL Facebook selectors live here, nowhere else ***
+│   ├── scrape.js              Read: suggestions, pending requests, birthdays
+│   └── act.js                 Write: click Add Friend, drive the message composer
+├── sidepanel/
+│   ├── panel.html / panel.js        The cockpit: queue, approve/skip, counters, checklist
+│   └── settings.html / settings.js  Industry targets, quotas, API key, model, caps
+├── lib/
+│   ├── store.js               chrome.storage.local wrapper, versioned schema, export/import
+│   ├── claude.js              Claude API client: structured output, validation, retry, cache
+│   ├── ledger.js              Person Ledger read/write and state transitions
+│   ├── ratelimit.js           Randomized human-paced gaps, daily caps, abort conditions
+│   └── log.js                 Ring-buffer log of every action and every AI call
+├── ARCHITECTURE.md            (this file)
+└── WORKFLOW-MAP.md            Living status tracker
+```
+
+### Why the Side Panel and not a popup
+
+Chrome's Side Panel API stays open while you navigate Facebook. A popup closes the instant you
+click the page, which makes an approve/skip workflow unusable.
+
+---
+
+## Central data model: the Person Ledger
+
+One record per human, ever. Every feature in the system is a **query over this one table.**
+
+```
+discovered
+  → ai_screened   { fit: 0-100, industry_guess, reason }
+  → rejected      (permanent — never surface this person again)
+  → queued
+  → requested     { date }
+       → pending
+       → accepted { date }
+       → cancelled
+       → expired
+  → dm_queued
+  → dm_sent       { date, message }
+  → replied
+```
+
+Record shape:
+
+```js
+{
+  id,              // stable: profile URL/ID. NEVER the display name.
+  name, headline, city, mutualCount, profileUrl, workInfo,
+  state,           // from the machine above
+  fit, industryGuess, aiReason, aiModel, aiCallId,
+  requestedAt, acceptedAt, dmSentAt,
+  history: []      // append-only state transitions with timestamps
+}
+```
+
+**This is why Steps 2 and 9 are not heavy lifts.** They are different filters on the same table:
+
+- Step 1 → writes new records
+- Step 2 → `state = requested|pending`, sorted oldest-last
+- Step 9 → `state = accepted AND dmSentAt = null AND acceptedAt < now - N days`
+
+The ledger is also the **dedupe layer**. A permanent `rejected` record is what stops the same
+unqualified people cycling back into the queue forever — a likely contributor to the old build's
+decay.
+
+---
+
+## Step 1 pipeline: discovery and screening
+
+Confirmed root cause of the prior build's decay: the AI screening step produced **false
+negatives** on misspelled or variant phrasing — e.g. "real estatte investor" scored as no match
+against "real estate investor" — rather than applying fuzzy tolerance. The fix is a three-tier
+pipeline, cheapest and most reliable checks first:
+
+1. **Include-keyword shortlist (fuzzy, no AI).** User-defined include keywords are matched against
+   profile text with **fuzzy string comparison** (edit-distance / trigram similarity, not exact
+   substring), so "real estatte investor" still matches "real estate investor". A hit shortlists
+   the profile immediately at zero AI cost.
+2. **Exclude-keyword hard skip (fuzzy, no AI).** Checked next, also fuzzy, also before any AI
+   call — e.g. "hard money lender", "mortgage broker". A hit is a permanent reject regardless of
+   anything else. Runs before AI specifically to avoid paying for a call on an obvious non-match.
+3. **AI persona scoring — only for what's left.** Profiles that neither matched nor were excluded
+   go to Claude with the user's target-persona description. The prompt explicitly instructs the
+   model to tolerate typos, abbreviations, and phrasing variants, and must return structured
+   `{confidence: 0-100, reason}` — never a bare yes/no. Every call and its response is logged, so a
+   disputed rejection is always auditable instead of guessed at.
+
+Confidence bands, not a single threshold:
+
+- `>= auto-add threshold` (user-set, default 90%) → queued automatically for the assisted-click
+  review list
+- **middle band** → still surfaced for human review with the AI's reason attached, rather than
+  silently discarded — this is what a pure high/low cutoff got wrong last time
+- `< reject floor` → permanent `rejected` in the ledger
+
+The golden set (see below) must include known misspelling/variant cases from this exact bug class,
+so a future prompt change can't reintroduce it silently.
+
+**Test Mode** (carried over from the prior build, and promoted to a Phase 0 requirement, not an
+extra): a global toggle that runs the entire pipeline — scan, fuzzy match, AI scoring, queueing —
+but never clicks Add Friend or Send. This is how a prompt or selector change gets verified safe
+before it touches a real profile.
+
+**Provider decision:** Claude only for this rebuild (matches the stated stack), with the model ID
+exposed as a setting, not a hardcoded multi-provider abstraction. Revisit only if a concrete need
+for a second provider shows up.
+
+---
+
+## Settings schema
+
+Reconstructed from the prior build's settings pages, since it already reflects real usage:
+
+**Discovery**
+- Target persona description (free text; can be generated from the keyword lists below)
+- Include keywords (one per line) — fuzzy-matched, auto-shortlist, no AI needed
+- Exclude keywords (one per line) — fuzzy-matched, hard skip, checked before any AI call
+- AI auto-add confidence threshold (slider, default 90%)
+- Daily scan match limits — **per day of week**, independent of the send caps below (this is "how
+  many candidates to find," separate from "how many requests to actually send")
+
+**Sending**
+- Max friend requests per day (recommended range 5–15; Facebook's own soft pending-request ceiling
+  is ~200, which is also why Step 2 exists)
+- Max messages per day (recommended range 5–15 — messaging is the more heavily policed surface)
+- Message templates: introductory DM, birthday message — `{firstName}` token substitution, AI may
+  draft around these but the template is the user-approved skeleton
+
+**Timing**
+- Minimum / maximum delay between actions (seconds) — randomized within this band, never a fixed
+  interval
+- Spread queue over N hours — the day's approved queue is distributed across a window rather than
+  fired back-to-back, so activity looks like a person working through a session, not a script
+
+**Safety**
+- Test Mode toggle — see above
+- Auto-send toggle, off by default — when off, matches are queued for the assisted-click review
+  list rather than sent unattended
+
+---
+
+## Repo location — RESOLVED
+
+This project now lives at `C:\dev\marketing-extension`, moved out of Google Drive for Desktop on
+2026-08-31 before `git init`. Google Drive continuously syncs files mid-write; Git's `.git`
+directory does many small rapid writes, and a sync grabbing a half-written object is a known
+cause of a corrupted repo. GitHub is the sync/backup mechanism going forward, not Drive.
+
+---
+
+## Claude API integration
+
+- **Direct browser calls** require the header `anthropic-dangerous-direct-browser-access: true`.
+- **Key storage:** entered once in Settings, held in `chrome.storage.local`. **Never** in the repo.
+  `.gitignore` plus a pre-commit check so a key can never get committed.
+- **If the extension is ever shared with staff:** move the key behind a small proxy (Cloudflare
+  Worker) so it is never distributed. Single-user v1 does not need this.
+- **Model ID is a setting, not a constant** — model IDs get retired; a hardcoded one is a time bomb.
+- **Structured output only** — tool use / JSON schema, every field validated, malformed responses
+  rejected and retried rather than passed downstream.
+- **Response cache** keyed on a profile signature so the same person is never screened twice.
+- **Every request and response logged**, so "bad results" is always auditable after the fact.
+- **Golden set:** roughly 20 hand-labeled profiles, re-run after any prompt change to prove the
+  change did not make screening worse. This is the discipline that prevents silent quality decay.
+
+Client financial data and client PII never touch this system. It handles only publicly-rendered
+Facebook profile information about prospects.
+
+---
+
+## Known technical hazards
+
+1. **Selector rot.** Facebook ships obfuscated, rotating class names. Mitigation: one selectors
+   file; prefer semantic anchors (`[aria-label*="Add friend"]`, ARIA roles, visible text) over
+   class names; the "Diagnose" button self-tests every selector against the live page and names
+   exactly what broke.
+2. **MV3 service worker termination.** The background script is killed after roughly 30s idle and
+   any in-memory variable vanishes. All state persists to storage; use `chrome.alarms`, never
+   `setTimeout`, for anything longer than a few seconds.
+3. **Virtualized lists.** The suggestions feed renders only what is on screen. Naive scraping
+   returns about 8 results and stops. Needs incremental scroll-and-collect with a stable dedupe key.
+4. **Resumability.** Extension reloads kill in-flight work. Every action is idempotent and marked
+   in the ledger before *and* after execution, so a half-finished run can resume safely.
+5. **Storage is not backup.** Uninstalling the extension wipes `chrome.storage.local`.
+   Export/import of the ledger is a Phase 0 requirement, not a nice-to-have.
+6. **Fuzzy-match false negatives — confirmed root cause of the prior build's decay.** Exact
+   substring matching rejects real matches over trivial typos or phrasing variants. See "Step 1
+   pipeline" above; the fix is fuzzy comparison at the keyword tier and explicit typo-tolerance
+   instructions plus a golden set at the AI tier.
+
+---
+
+## Platform and account risk (read once, decide deliberately)
+
+Automating friend requests and direct messages is **against Facebook's Terms of Service.** This is
+not a theoretical concern. Realistic consequences, in escalating order:
+
+- Friend-request ability suspended for days to weeks
+- Messaging restricted (Facebook polices messaging far more aggressively than friend requests)
+- Checkpoint / ID verification demanded
+- Worst case: loss of the personal account, and with it admin access to the business Page
+
+Because the firm's Page and professional reputation live on that account, this is a **business
+risk**, not only a technical one. The design mitigates it by choice:
+
+- Conservative, user-set daily caps
+- Human approval gates on anything outbound — always on DMs
+- Randomized, human-paced timing; never faster than a person could plausibly click
+- Only runs while Greg is at the machine, never unattended overnight
+- Immediate hard stop on any checkpoint, error, or unexpected page state
+
+This build does **not** include anti-detection or evasion tooling. The volume dial is Greg's to set,
+with the downside understood.
+
+---
+
+## Build order
+
+| Phase | Deliverable | Why in this order |
+|---|---|---|
+| **0** | Skeleton, storage, logger, settings, Claude client, Diagnose | Nothing above is debuggable without it |
+| **1** | Step 1 — friend discovery, end to end | First endpoint. Proves scrape + AI + queue + act. |
+| **2** | Step 9 — greeting DM, end to end | Second endpoint. Reuses the entire Phase 1 spine. |
+| **3** | Steps 2, 3, 4, 6, 7, 8 | Mostly new filters over plumbing that already exists |
