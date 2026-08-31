@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "TNG Marketing Extension",
+  "version": "0.1.0",
+  "description": "Human-in-the-loop Facebook marketing cockpit for The Numbers Guy, LLC.",
+  "permissions": ["storage", "sidePanel", "alarms"],
+  "host_permissions": [
+    "https://*.facebook.com/*",
+    "https://api.anthropic.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.facebook.com/*"],
+      "js": [
+        "content/selectors.js",
+        "content/scrape.js",
+        "content/act.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "TNG Marketing Extension"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  }
+}

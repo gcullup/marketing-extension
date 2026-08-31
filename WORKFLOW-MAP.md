@@ -33,7 +33,9 @@ Update this file at the end of every working session.
 - [x] 0.4 **Move repo out of Google Drive** → now at `C:\dev\marketing-extension`
 - [x] 0.5 `git init`, `.gitignore`, first commit
 - [x] 0.6 Create private GitHub repo, push → https://github.com/gcullup/marketing-extension
-- [ ] 0.7 Extension skeleton: `manifest.json` (MV3), folder layout
+- [x] 0.7 Extension skeleton: `manifest.json` (MV3), folder layout — manifest, background service
+      worker, content scripts (selectors/scrape/act placeholders, wired for messaging), side
+      panel with a live storage + content-script ping test, settings placeholder
 - [ ] 0.8 Load unpacked in Chrome, confirm it appears and the side panel opens
 - [ ] 0.9 Storage layer (`lib/store.js`) — versioned schema, export/import backup
 - [ ] 0.10 Logger (`lib/log.js`) — every action + every AI call recorded, viewable & exportable
