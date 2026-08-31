@@ -171,8 +171,31 @@ and reports elapsed time / success.
 candidate → wait for navigation → scroll the detail pane a randomized 5/15/25 times (matching the
 old tool, with small randomized delays between scrolls) → extract all visible text → report length
 + a 500-char preview. This is task 1.1's entire read side for one candidate, chained end to end.
-Still no Add Friend click. Pending Greg's test — specifically whether real bio/industry content
-actually shows up in the extracted text preview.
+Still no Add Friend click.
+
+**Real bug found live (2026-08-31):** `textPreview` came back as entirely left-hand-list noise
+("50 mutual friends / Add friend / Remove", repeated per visible candidate) with none of Mike
+Perdue's own content — `document.body.innerText` grabs the whole page, and the persistent list
+(confirmed split-view, still fully attached) sits earlier in the DOM, drowning out the signal.
+**Fixed:** `extractVisibleText` now accepts the list's scroll container and temporarily sets its
+`visibility: hidden` before reading `innerText` (excluded from the rendered-text computation),
+then immediately restores it. Verified in a live browser JS engine against a synthetic page
+mirroring the real shape: correctly dropped the list noise, kept the real content, and confirmed
+visibility was restored afterward, not left stuck hidden.
+
+**Scrolling realism improved, per Greg's concern about looking bot-like:** the original version
+scrolled a fixed, identical 900px via an instant (non-animated) jump every single time — about as
+uniform a signature as a detector could ask for. Now: randomized distance per step (150–950px),
+`behavior: 'smooth'` animated scrolling instead of an instant jump, a `scrollend`-based wait
+(adapts to actual animation time rather than a guessed delay), and a 15% chance per step of a
+longer "reading pause" (1.5–3s) instead of uniform short gaps. **Being direct about the limits of
+this:** this narrows the gap versus real scrolling at the DOM-event level, but it is not a claim of
+undetectability — the bigger, higher-leverage protection is session-level pacing (daily caps,
+spread-over-hours, human-paced gaps between actions), which the architecture already covers. Volume
+and rate matter more than the physics of one scroll gesture.
+
+Pending Greg's retest — specifically whether real bio/industry content now shows up in the
+extracted text preview, and whether the scrolling looks meaningfully more natural.
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old

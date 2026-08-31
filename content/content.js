@@ -21,6 +21,24 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // Waits for a smooth scroll to finish (the 'scrollend' event) rather than
+  // a fixed guess, so pacing adapts to however long the animation actually
+  // takes instead of a hardcoded number. Falls back to a timeout in case
+  // 'scrollend' doesn't fire (e.g. the scroll distance was ~0).
+  function waitForScrollSettled(timeoutMs = 1200) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('scrollend', finish);
+        resolve();
+      };
+      window.addEventListener('scrollend', finish, { once: true });
+      setTimeout(finish, timeoutMs);
+    });
+  }
+
   function waitForProfileUrl(timeoutMs = 6000) {
     return new Promise((resolve, reject) => {
       const startedAt = Date.now();
@@ -109,20 +127,32 @@
 
         await delay(800); // let initial profile content render before scrolling
 
+        // Varied distance and animated (not instant-jump) motion per step,
+        // plus an occasional longer pause as if actually reading something —
+        // a fixed identical-distance instant jump every time (the previous
+        // version) is about as bot-like a pattern as exists. This narrows
+        // the gap versus real scrolling, but the bigger protection against
+        // being flagged is session-level: daily caps and spread-over-hours
+        // pacing (see ARCHITECTURE.md), not the physics of one scroll.
         const scrollCounts = [5, 15, 25];
         const chosenScrollCount = scrollCounts[Math.floor(Math.random() * scrollCounts.length)];
         for (let i = 0; i < chosenScrollCount; i++) {
-          MKT.scrape.scrollDetailPane(900);
-          await delay(300 + Math.random() * 300);
+          const distance = 150 + Math.random() * 950;
+          MKT.scrape.scrollDetailPane(distance);
+          await waitForScrollSettled();
+          const isReadingPause = Math.random() < 0.15;
+          await delay(isReadingPause ? 1500 + Math.random() * 1500 : 250 + Math.random() * 500);
         }
 
-        const text = MKT.scrape.extractVisibleText();
+        const listContainer = MKT.scrape.getListScrollContainer();
+        const text = MKT.scrape.extractVisibleText(listContainer);
         sendResponse({
           ok: true,
           targetName: target.name,
           finalUrl: location.href,
           navElapsedMs,
           scrollCount: chosenScrollCount,
+          excludedListNoise: !!listContainer,
           textLength: text.length,
           textPreview: text.slice(0, 500),
         });

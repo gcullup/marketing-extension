@@ -82,24 +82,43 @@
     return findScrollableAncestor(anchor);
   };
 
-  MKT.scrape.scrollList = function (amount = 800) {
+  MKT.scrape.scrollList = function (amount) {
     const container = MKT.scrape.getListScrollContainer();
     if (!container) return false;
-    container.scrollBy(0, amount);
+    container.scrollBy({ top: amount, left: 0, behavior: 'smooth' });
     return true;
   };
 
   // Confirmed live: the detail pane's scrollable ancestor is <html> itself
   // (document.scrollingElement), unlike the list, which has its own
   // internal scroll container. A plain window scroll is enough here.
-  MKT.scrape.scrollDetailPane = function (amount = 800) {
-    window.scrollBy(0, amount);
+  // `behavior: 'smooth'` animates the scroll rather than jumping instantly —
+  // a real mouse-wheel/trackpad scroll is never an instant jump.
+  MKT.scrape.scrollDetailPane = function (amount) {
+    window.scrollBy({ top: amount, left: 0, behavior: 'smooth' });
   };
 
   // Mirrors the prior (validated) approach: grab all visible text rather
   // than dissect individual Intro-box fields, and let keyword/AI matching
   // find industry signal wherever it appears (see WORKFLOW-MAP.md Phase 1).
-  MKT.scrape.extractVisibleText = function () {
-    return document.body.innerText;
+  //
+  // Confirmed live this needed a fix: the persistent left-hand suggestions
+  // list sits earlier in the DOM than the clicked candidate's own content,
+  // and a plain document.body.innerText grab returned page after page of
+  // "50 mutual friends / Add friend / Remove" noise with none of the actual
+  // candidate's content — the split-view layout means the list is still
+  // fully attached to the page, not swapped out. `excludeEl` (the list's
+  // scroll container, from getListScrollContainer()) is temporarily hidden
+  // via visibility so it's excluded from innerText's rendered-text
+  // computation, then immediately restored. Verified in a live browser JS
+  // engine: correctly drops the list's text, keeps the real content, and
+  // leaves visibility exactly as it was afterward.
+  MKT.scrape.extractVisibleText = function (excludeEl) {
+    if (!excludeEl) return document.body.innerText;
+    const prevVisibility = excludeEl.style.visibility;
+    excludeEl.style.visibility = 'hidden';
+    const text = document.body.innerText;
+    excludeEl.style.visibility = prevVisibility;
+    return text;
   };
 })();
