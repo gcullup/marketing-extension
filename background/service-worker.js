@@ -20,7 +20,220 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((err) => console.error('[TNG Marketing Extension] sidePanel setup failed:', err));
 
-// Minimal message router. Real screening/queueing logic arrives in Phase 1.
+function sendToTab(tabId, message) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
+
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+/**
+ * The DECIDE half of the pipeline, for one already-scraped candidate. The
+ * content script only scrapes raw text/links (DOING); this is where the
+ * tiering logic, the Claude call, and the ledger write live, per the
+ * DECIDE/DO split.
+ *
+ * Tiering, per Greg's design (2026-08-31):
+ *   1. Exclude keywords, fuzzy-matched (typo-tolerant) — hard reject, no AI
+ *      call. Pure cost-saving; a false exclude just skips someone, which is
+ *      a cheaper mistake than a wasted API call.
+ *   2. Include keywords, EXACT match only — free instant shortlist, no AI
+ *      call.
+ *   3. Everything else always goes to the AI with the full text AND the
+ *      extracted external links, judged holistically rather than by literal
+ *      string match — this is what actually catches cases like a personal
+ *      business website or a typo'd occupation.
+ *
+ * Shared by the single-candidate SCREEN_CANDIDATE message and the discovery
+ * batch loop, so both go through identical dedupe/tiering/ledger logic
+ * rather than two implementations that could drift apart.
+ */
+async function screenAndRecord({ text, links = [], targetName, profileUrl }) {
+  const id = profileUrl ? extractProfileId(profileUrl) : null;
+
+  async function finalize(result) {
+    await log('info', `Screened candidate — ${result.tier}`, {
+      targetName,
+      verdict: result.verdict,
+      confidence: result.confidence,
+    });
+    if (!id) {
+      return { ok: true, ledgerState: null, ledgerNote: 'no stable profile id — not recorded', ...result };
+    }
+    const record = await recordScreening({ id, name: targetName, profileUrl }, result);
+    return { ok: true, ledgerState: record.state, ...result };
+  }
+
+  // Dedupe: if this person was already screened, don't waste another AI
+  // call (or even re-run the keyword tiers) — the ledger exists specifically
+  // so a decided person is never re-litigated.
+  if (id) {
+    const existing = await getPerson(id);
+    if (existing?.screening) {
+      await log('info', 'Screening skipped — already in ledger', { targetName, state: existing.state });
+      return { ok: true, ledgerState: existing.state, fromCache: true, ...existing.screening };
+    }
+  }
+
+  const settings = await getSettings();
+  const { includeKeywords, excludeKeywords, targetPersona, claude, confidenceThreshold, rejectFloor } = settings;
+
+  // Exclude and exact-include verdicts are deterministic by design — not run
+  // through computeVerdict's threshold comparison — so they stay correct
+  // regardless of whatever the user sets the sliders to.
+  if (matchesAny(text, excludeKeywords)) {
+    return finalize({
+      tier: 'exclude',
+      verdict: 'reject',
+      confidence: 0,
+      reasoning: 'Matched an exclude keyword.',
+      signals: [],
+    });
+  }
+
+  if (matchesAnyExact(text, includeKeywords)) {
+    return finalize({
+      tier: 'exact-include',
+      verdict: 'auto-add',
+      confidence: 100,
+      reasoning: 'Exact include-keyword match — auto-shortlisted without an AI call.',
+      signals: [],
+    });
+  }
+
+  const aiResult = await screenCandidate({
+    apiKey: claude.apiKey,
+    model: claude.model,
+    targetPersona,
+    profileText: text,
+    links,
+  });
+  const verdict = computeVerdict(aiResult.confidence, { autoAddThreshold: confidenceThreshold, rejectFloor });
+  return finalize({ tier: 'ai', verdict, ...aiResult });
+}
+
+// Safety nets independent of the daily scan limit, so a bug in list-growth
+// detection or an unexpected page state can't spin forever.
+const BATCH_SAFETY_MAX_CANDIDATES_TRIED = 300;
+const BATCH_SAFETY_MAX_DURATION_MS = 20 * 60 * 1000; // 20 minutes
+
+/**
+ * Walks the candidate list in order, screening each one via the same
+ * scrape → tier → AI → ledger path as the manual test button, until either
+ * today's scan limit (Settings, per day of week) is reached or the list is
+ * exhausted. Already-known candidates are cheap to pass over: their scrape
+ * is skipped entirely at the content-script level (see
+ * scrapeCandidateProfile's cache check) and they don't count against the
+ * daily limit, since nothing new was screened.
+ *
+ * Every candidate is recorded to the ledger as soon as they're screened,
+ * not buffered until the end — MV3 can terminate the background service
+ * worker after ~30s of no extension-API activity, and a full batch can run
+ * for several minutes. If that happens mid-batch, nothing already-completed
+ * is lost, and running the batch again picks up where it left off (dedupe
+ * skips everyone already done). This hasn't been tested against a real
+ * multi-person batch yet — see WORKFLOW-MAP.md.
+ */
+async function runDiscoveryBatch(tabId) {
+  const settings = await getSettings();
+  const todayKey = DAY_KEYS[new Date().getDay()];
+  const dailyLimit = settings.scanLimitsByDay?.[todayKey] ?? 0;
+
+  const results = [];
+  if (dailyLimit <= 0) {
+    return { newlyScreened: 0, results, stoppedReason: 'daily_limit_is_zero', todayKey };
+  }
+
+  const startedAt = Date.now();
+  let newlyScreened = 0;
+  let index = 0;
+  let previousListLength = -1;
+  let noGrowthStreak = 0;
+  let candidatesTried = 0;
+  let stoppedReason = 'unknown';
+
+  while (true) {
+    if (newlyScreened >= dailyLimit) {
+      stoppedReason = 'daily_limit_reached';
+      break;
+    }
+    if (candidatesTried >= BATCH_SAFETY_MAX_CANDIDATES_TRIED) {
+      stoppedReason = 'safety_cap_candidates';
+      break;
+    }
+    if (Date.now() - startedAt >= BATCH_SAFETY_MAX_DURATION_MS) {
+      stoppedReason = 'safety_cap_duration';
+      break;
+    }
+
+    const { candidates } = await sendToTab(tabId, { type: 'GET_CANDIDATE_LIST' });
+
+    if (index >= candidates.length) {
+      // Need more candidates than are currently rendered — scroll the list
+      // (it's virtualized) and check again. Two consecutive scrolls with no
+      // growth means we've hit the real end, not just a lazy-load delay.
+      if (candidates.length === previousListLength) {
+        noGrowthStreak++;
+        if (noGrowthStreak >= 2) {
+          stoppedReason = 'list_exhausted';
+          break;
+        }
+      } else {
+        noGrowthStreak = 0;
+      }
+      previousListLength = candidates.length;
+      await sendToTab(tabId, { type: 'SCROLL_LIST' });
+      continue;
+    }
+
+    const candidate = candidates[index];
+    index++;
+    candidatesTried++;
+
+    const scrapeResult = await sendToTab(tabId, {
+      type: 'SCRAPE_CANDIDATE',
+      name: candidate.name,
+      href: candidate.href,
+    });
+
+    if (!scrapeResult.ok) {
+      results.push({ name: candidate.name, error: scrapeResult.reason });
+      continue;
+    }
+    if (scrapeResult.skippedScrape) {
+      // Already known — doesn't count toward today's limit, since nothing
+      // new was screened.
+      results.push({ name: candidate.name, ledgerState: scrapeResult.ledgerState, skipped: true });
+      continue;
+    }
+
+    const screenResult = await screenAndRecord({
+      text: scrapeResult.text,
+      links: scrapeResult.links,
+      targetName: candidate.name,
+      profileUrl: scrapeResult.finalUrl,
+    });
+    results.push({
+      name: candidate.name,
+      tier: screenResult.tier,
+      verdict: screenResult.verdict,
+      confidence: screenResult.confidence,
+      ledgerState: screenResult.ledgerState,
+    });
+    newlyScreened++;
+  }
+
+  await log('info', 'Discovery batch finished', { todayKey, dailyLimit, newlyScreened, stoppedReason });
+  return { newlyScreened, results, stoppedReason, todayKey, dailyLimit };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'PING') {
     sendResponse({ type: 'PONG', from: 'background', at: Date.now() });
@@ -50,97 +263,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === 'SCREEN_CANDIDATE') {
-    // The DECIDE half of the pipeline. The content script only scrapes raw
-    // text/links (DOING); this is where the tiering logic and the Claude
-    // call live, per the DECIDE/DO split (see ARCHITECTURE.md).
-    //
-    // Tiering, per Greg's design (2026-08-31):
-    //   1. Exclude keywords, fuzzy-matched (typo-tolerant) — hard reject,
-    //      no AI call. Pure cost-saving; a false exclude just skips someone,
-    //      which is a cheaper mistake than a wasted API call.
-    //   2. Include keywords, EXACT match only — free instant shortlist, no
-    //      AI call.
-    //   3. Everything else always goes to the AI with the full text AND the
-    //      extracted external links, judged holistically rather than by
-    //      literal string match — this is what actually catches cases like
-    //      a personal business website or a typo'd occupation.
     (async () => {
-      const { text, links = [], targetName, profileUrl } = message;
-      const id = profileUrl ? extractProfileId(profileUrl) : null;
-
-      // Record the result to the Person Ledger and respond — the one path
-      // every branch below funnels through, so dedupe/history/state is
-      // handled identically regardless of which tier decided the verdict.
-      async function finalize(result) {
-        await log('info', `Screened candidate — ${result.tier}`, {
-          targetName,
-          verdict: result.verdict,
-          confidence: result.confidence,
-        });
-        if (!id) {
-          sendResponse({ ok: true, ledgerState: null, ledgerNote: 'no stable profile id — not recorded', ...result });
-          return;
-        }
-        const record = await recordScreening({ id, name: targetName, profileUrl }, result);
-        sendResponse({ ok: true, ledgerState: record.state, ...result });
-      }
-
       try {
-        // Dedupe: if this person was already screened before, don't waste
-        // another AI call (or even re-run the keyword tiers) — the ledger
-        // exists specifically so a decided person is never re-litigated.
-        if (id) {
-          const existing = await getPerson(id);
-          if (existing?.screening) {
-            await log('info', 'Screening skipped — already in ledger', { targetName, state: existing.state });
-            sendResponse({ ok: true, ledgerState: existing.state, fromCache: true, ...existing.screening });
-            return;
-          }
-        }
-
-        const settings = await getSettings();
-        const { includeKeywords, excludeKeywords, targetPersona, claude, confidenceThreshold, rejectFloor } =
-          settings;
-
-        // Exclude and exact-include verdicts are deterministic by design —
-        // not run through computeVerdict's threshold comparison — so they
-        // stay correct regardless of whatever the user sets the sliders to.
-        if (matchesAny(text, excludeKeywords)) {
-          await finalize({
-            tier: 'exclude',
-            verdict: 'reject',
-            confidence: 0,
-            reasoning: 'Matched an exclude keyword.',
-            signals: [],
-          });
-          return;
-        }
-
-        if (matchesAnyExact(text, includeKeywords)) {
-          await finalize({
-            tier: 'exact-include',
-            verdict: 'auto-add',
-            confidence: 100,
-            reasoning: 'Exact include-keyword match — auto-shortlisted without an AI call.',
-            signals: [],
-          });
-          return;
-        }
-
-        const aiResult = await screenCandidate({
-          apiKey: claude.apiKey,
-          model: claude.model,
-          targetPersona,
-          profileText: text,
-          links,
-        });
-        const verdict = computeVerdict(aiResult.confidence, {
-          autoAddThreshold: confidenceThreshold,
-          rejectFloor,
-        });
-        await finalize({ tier: 'ai', verdict, ...aiResult });
+        sendResponse(await screenAndRecord(message));
       } catch (err) {
-        await log('error', 'Screening failed', { targetName, error: err.message });
+        await log('error', 'Screening failed', { targetName: message.targetName, error: err.message });
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+  if (message?.type === 'RUN_DISCOVERY_BATCH') {
+    (async () => {
+      try {
+        sendResponse(await runDiscoveryBatch(message.tabId));
+      } catch (err) {
+        await log('error', 'Discovery batch failed', { error: err.message });
         sendResponse({ ok: false, error: err.message });
       }
     })();

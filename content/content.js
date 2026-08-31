@@ -23,18 +23,20 @@
 
   // Waits for a smooth scroll to finish (the 'scrollend' event) rather than
   // a fixed guess, so pacing adapts to however long the animation actually
-  // takes instead of a hardcoded number. Falls back to a timeout in case
-  // 'scrollend' doesn't fire (e.g. the scroll distance was ~0).
-  function waitForScrollSettled(timeoutMs = 1200) {
+  // takes instead of a hardcoded number. `target` defaults to window (the
+  // detail pane) but the list has its own scrollable element, which fires
+  // its own 'scrollend' rather than window's. Falls back to a timeout in
+  // case 'scrollend' doesn't fire (e.g. the scroll distance was ~0).
+  function waitForScrollSettled(target = window, timeoutMs = 1200) {
     return new Promise((resolve) => {
       let done = false;
       const finish = () => {
         if (done) return;
         done = true;
-        window.removeEventListener('scrollend', finish);
+        target.removeEventListener('scrollend', finish);
         resolve();
       };
-      window.addEventListener('scrollend', finish, { once: true });
+      target.addEventListener('scrollend', finish, { once: true });
       setTimeout(finish, timeoutMs);
     });
   }
@@ -61,6 +63,76 @@
         }
       }, 250);
     });
+  }
+
+  /**
+   * The full read path for ONE candidate: check the ledger first (skip
+   * entirely if already known), click, wait for navigation, scroll the
+   * detail pane a randomized number of times, extract text + external
+   * links. Shared by the manual single-candidate test button and the
+   * discovery batch loop — takes an explicit {name, href} rather than
+   * always assuming "whoever's first", so the batch loop can drive it
+   * across the whole list.
+   */
+  async function scrapeCandidateProfile(target) {
+    const cacheCheck = await checkCachedScreening(target.href);
+    if (cacheCheck.cached) {
+      return {
+        ok: true,
+        targetName: target.name,
+        finalUrl: target.href,
+        fromCache: true,
+        skippedScrape: true,
+        ...cacheCheck,
+      };
+    }
+
+    const clickResult = MKT.act.clickCandidate(target.href);
+    if (!clickResult.clicked) {
+      return { ok: false, reason: clickResult.reason };
+    }
+
+    let navElapsedMs;
+    try {
+      navElapsedMs = await waitForProfileUrl();
+    } catch (err) {
+      return { ok: false, reason: err.message, finalUrl: location.href };
+    }
+
+    await delay(800); // let initial profile content render before scrolling
+
+    // Varied distance and animated (not instant-jump) motion per step, plus
+    // an occasional longer pause as if actually reading something — a fixed
+    // identical-distance instant jump every time is about as bot-like a
+    // pattern as exists. This narrows the gap versus real scrolling, but the
+    // bigger protection against being flagged is session-level: daily caps
+    // and spread-over-hours pacing (see ARCHITECTURE.md), not the physics
+    // of one scroll.
+    const scrollCounts = [5, 15, 25];
+    const chosenScrollCount = scrollCounts[Math.floor(Math.random() * scrollCounts.length)];
+    for (let i = 0; i < chosenScrollCount; i++) {
+      const distance = 150 + Math.random() * 950;
+      MKT.scrape.scrollDetailPane(distance);
+      await waitForScrollSettled(window);
+      const isReadingPause = Math.random() < 0.15;
+      await delay(isReadingPause ? 1500 + Math.random() * 1500 : 250 + Math.random() * 500);
+    }
+
+    const listContainer = MKT.scrape.getListScrollContainer();
+    const text = MKT.scrape.extractVisibleText(listContainer);
+    const links = MKT.scrape.extractExternalLinks(listContainer);
+    return {
+      ok: true,
+      targetName: target.name,
+      finalUrl: location.href,
+      navElapsedMs,
+      scrollCount: chosenScrollCount,
+      excludedListNoise: !!listContainer,
+      text,
+      links,
+      textLength: text.length,
+      textPreview: text.slice(0, 500),
+    };
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -108,83 +180,44 @@
       return true; // keep the message channel open for the async sendResponse
     }
     if (message?.type === 'TEST_FULL_CANDIDATE_SCRAPE') {
-      // Click the first candidate, wait for navigation, scroll the detail
-      // pane a randomized number of times (mirroring the old tool's 5/15/25
-      // pattern), then grab all visible text — the full Step 1 read path
-      // for one candidate, end to end. Still no Add Friend click.
+      // Manual single-candidate test — always whoever's first in the list.
       (async () => {
         const candidates = MKT.scrape.listCandidates();
         if (!candidates.length) {
           sendResponse({ ok: false, reason: 'no candidates found' });
           return;
         }
-        const target = candidates[0];
-
-        // Check the ledger BEFORE ever clicking — the whole point of
-        // caching is skipping the expensive DOM work (click, wait, 5-25
-        // scrolls) for someone already screened, not just skipping the AI
-        // call after doing all of that anyway.
-        const cacheCheck = await checkCachedScreening(target.href);
-        if (cacheCheck.cached) {
-          sendResponse({
-            ok: true,
-            targetName: target.name,
-            finalUrl: target.href,
-            fromCache: true,
-            skippedScrape: true,
-            ...cacheCheck,
-          });
-          return;
+        sendResponse(await scrapeCandidateProfile(candidates[0]));
+      })();
+      return true;
+    }
+    if (message?.type === 'GET_CANDIDATE_LIST') {
+      // Full (unsliced) candidate list — used by the discovery batch loop
+      // to walk every visible candidate, not just the first few for display.
+      sendResponse({ candidates: MKT.scrape.listCandidates() });
+      return true;
+    }
+    if (message?.type === 'SCROLL_LIST') {
+      // Scrolls the candidate list itself to reveal more entries (the list
+      // is virtualized/lazily-loaded — see WORKFLOW-MAP.md Phase 1).
+      (async () => {
+        const container = MKT.scrape.getListScrollContainer();
+        const distance = 200 + Math.random() * 600;
+        const scrolled = MKT.scrape.scrollList(distance);
+        if (scrolled && container) {
+          await waitForScrollSettled(container);
         }
-
-        const clickResult = MKT.act.clickCandidate(target.href);
-        if (!clickResult.clicked) {
-          sendResponse({ ok: false, reason: clickResult.reason });
-          return;
-        }
-
-        let navElapsedMs;
-        try {
-          navElapsedMs = await waitForProfileUrl();
-        } catch (err) {
-          sendResponse({ ok: false, reason: err.message, finalUrl: location.href });
-          return;
-        }
-
-        await delay(800); // let initial profile content render before scrolling
-
-        // Varied distance and animated (not instant-jump) motion per step,
-        // plus an occasional longer pause as if actually reading something —
-        // a fixed identical-distance instant jump every time (the previous
-        // version) is about as bot-like a pattern as exists. This narrows
-        // the gap versus real scrolling, but the bigger protection against
-        // being flagged is session-level: daily caps and spread-over-hours
-        // pacing (see ARCHITECTURE.md), not the physics of one scroll.
-        const scrollCounts = [5, 15, 25];
-        const chosenScrollCount = scrollCounts[Math.floor(Math.random() * scrollCounts.length)];
-        for (let i = 0; i < chosenScrollCount; i++) {
-          const distance = 150 + Math.random() * 950;
-          MKT.scrape.scrollDetailPane(distance);
-          await waitForScrollSettled();
-          const isReadingPause = Math.random() < 0.15;
-          await delay(isReadingPause ? 1500 + Math.random() * 1500 : 250 + Math.random() * 500);
-        }
-
-        const listContainer = MKT.scrape.getListScrollContainer();
-        const text = MKT.scrape.extractVisibleText(listContainer);
-        const links = MKT.scrape.extractExternalLinks(listContainer);
-        sendResponse({
-          ok: true,
-          targetName: target.name,
-          finalUrl: location.href,
-          navElapsedMs,
-          scrollCount: chosenScrollCount,
-          excludedListNoise: !!listContainer,
-          text,
-          links,
-          textLength: text.length,
-          textPreview: text.slice(0, 500),
-        });
+        await delay(400 + Math.random() * 400); // let newly-loaded rows render
+        sendResponse({ scrolled });
+      })();
+      return true;
+    }
+    if (message?.type === 'SCRAPE_CANDIDATE') {
+      // Generalized version of TEST_FULL_CANDIDATE_SCRAPE for an explicit
+      // {name, href} — what the discovery batch loop calls for each
+      // candidate it walks, in list order.
+      (async () => {
+        sendResponse(await scrapeCandidateProfile({ name: message.name, href: message.href }));
       })();
       return true;
     }

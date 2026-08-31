@@ -269,13 +269,28 @@ Also fixed a leftover copy bug in the existing slider's hint text (it described 
 of what auto-approve does). Re-running Jay Fayz's real result (confidence 8) through this now
 correctly yields `verdict: "reject"`.
 
-- [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
-      (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
-      tool's 5/15/25 pattern), then grab all visible text from that pane as one blob — primitives
-      built above; **still needed: the orchestration loop that sequences click → wait-for-load →
-      scroll → extract → move to next candidate**, which belongs in the background service worker
-      per the DECIDE/DO split, plus a real answer for "how do we know the profile finished loading"
-      (candidate: poll until extracted text stops growing, or a fixed delay — untested either way)
+- [x] 1.1 Orchestration loop built (2026-08-31): `content/content.js` refactored so the click →
+      wait-for-navigation → scroll → extract sequence (`scrapeCandidateProfile`) takes an explicit
+      `{name, href}` instead of always assuming "whoever's first" — used by both the manual test
+      button and the new loop. New content messages: `GET_CANDIDATE_LIST` (full, unsliced list),
+      `SCROLL_LIST` (loads more of the virtualized list), `SCRAPE_CANDIDATE` (generalized
+      single-candidate scrape). `runDiscoveryBatch` in `background/service-worker.js` drives it:
+      walks the list in order, screens each new candidate through the same `screenAndRecord` path
+      as the manual button (refactored out of the old inline `SCREEN_CANDIDATE` handler so both
+      share one implementation), scrolls the list to load more when it runs out, and stops on
+      today's day-of-week scan limit (`settings.scanLimitsByDay`), list exhaustion (2 consecutive
+      no-growth reads after scrolling), or a defensive safety cap (300 candidates / 20 minutes).
+      Already-known candidates are skipped almost for free (cache hit at the content-script level,
+      per the earlier dedupe-timing fix) and don't count against the daily limit. Day-of-week
+      mapping and the list-exhaustion detection logic verified in a live browser JS engine against
+      scripted date/sequence cases before wiring in. **Open, real risk, not yet tested against a
+      real multi-person batch:** MV3 can kill the background service worker after ~30s of no
+      extension-API activity, and a full batch can run for several minutes — see
+      ARCHITECTURE.md hazard #2. Designed to degrade safely if this happens (every candidate is
+      written to the ledger immediately, not buffered), but whether it actually gets killed
+      mid-batch in practice is unknown until Greg runs a real batch.
+      **Pending: Greg clicks "Run Discovery Batch" and reports the result — especially whether it
+      completes in one shot or seems to die partway through.**
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking

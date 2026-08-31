@@ -159,4 +159,28 @@ viewLedgerBtn.addEventListener('click', async () => {
   ledgerResult.textContent = `${people.length} record(s):\n${JSON.stringify(summary, null, 2)}`;
 });
 
+const runBatchBtn = document.getElementById('runBatchBtn');
+const batchResult = document.getElementById('batchResult');
+
+runBatchBtn.addEventListener('click', async () => {
+  batchResult.textContent =
+    'Running discovery batch — this walks the whole visible list and can take several minutes. Do not close this panel.';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('facebook.com')) {
+    batchResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+    return;
+  }
+  chrome.runtime.sendMessage({ type: 'RUN_DISCOVERY_BATCH', tabId: tab.id }, (response) => {
+    if (chrome.runtime.lastError) {
+      batchResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    if (!response?.ok && response?.error) {
+      batchResult.textContent = `Batch failed: ${response.error}`;
+      return;
+    }
+    batchResult.textContent = JSON.stringify(response, null, 2);
+  });
+});
+
 init();

@@ -233,6 +233,15 @@ Facebook profile information about prospects.
 2. **MV3 service worker termination.** The background script is killed after roughly 30s idle and
    any in-memory variable vanishes. All state persists to storage; use `chrome.alarms`, never
    `setTimeout`, for anything longer than a few seconds.
+   **Live, real, currently untested risk (2026-08-31):** the discovery batch loop (`lib/ledger.js`
+   + `runDiscoveryBatch` in `background/service-worker.js`) can run for several minutes across
+   many candidates, entirely inside one message handler. It's not confirmed whether Chrome kills
+   the service worker mid-batch under real conditions. Designed around the risk rather than
+   assuming it away: every candidate is written to the ledger the moment they're screened, not
+   buffered until the end, so a mid-batch kill loses nothing already-completed — re-running the
+   batch just resumes via dedupe. If real testing shows this is a frequent problem, the proper fix
+   is `chrome.alarms`-driven incremental resumption rather than one long-running call; not built
+   yet since it's speculative complexity until proven necessary.
 3. **Virtualized lists.** The suggestions feed renders only what is on screen. Naive scraping
    returns about 8 results and stops. Needs incremental scroll-and-collect with a stable dedupe key.
 4. **Resumability.** Extension reloads kill in-flight work. Every action is idempotent and marked
