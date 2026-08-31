@@ -376,6 +376,31 @@ live suggestions list, not just a truthy return value.** Remove-on-reject fully 
 rejects → orchestrated batch loop respecting daily scan limits. Every piece has been tested against
 live Facebook data and real Claude API calls, with three real bugs found and fixed along the way
 (fuzzy-match false negatives, ledger identity collision, batch-aborting AI errors).
+
+- [x] 1.7 Side panel review queue — built (2026-08-31) as its own full-width page
+      (`sidepanel/review.html`/`review.js`, opened via a link from the main panel, matching the
+      Settings pattern) rather than crammed into the narrow side panel. Lists everyone in
+      `needs_review` (highest confidence first, so the strongest candidates get triaged before the
+      marginal ones), showing name (linked to their real profile), confidence, tier, the AI's full
+      reasoning, and its signals list. Approve → `queued`, Skip → `rejected`, both using the
+      `approvePerson`/`skipPerson` ledger functions built earlier but never wired to anything until
+      now. Skip also best-effort attempts the same Remove-from-suggestions action as an AI reject —
+      best-effort only, since it requires that person to currently be rendered on a live
+      `facebook.com/friends/suggestions` tab, which won't always be true when reviewing later (they
+      may have scrolled out of the virtualized list, or no such tab may be open) — a failure there
+      is not treated as an error, since the ledger state change is what actually matters. Main panel
+      now shows a live "Review Queue (N waiting)" count.
+      **Real security issue caught and fixed before ever shipping:** the first draft interpolated
+      scraped Facebook names and AI-generated reasoning/signals directly into `innerHTML` — both are
+      effectively untrusted input, and this page has ledger, settings, and Claude-API-key access, so
+      a maliciously-crafted profile name (or AI output echoing something injected) would have been a
+      real stored-XSS vector, not a hypothetical one. Rewritten to set every dynamic value via
+      `textContent`/property assignment instead. Verified live: fed the renderer a fake person with
+      an `<img onerror>` name, a `<script>` in the reasoning, and an `<svg onload>` signal — none
+      executed, all rendered as inert literal text, and the actual DOM contained zero injected
+      `<img>`/`<script>`/`<svg>` elements.
+      **Pending: Greg opens the Review Queue and tries Approve/Skip against real accumulated data.**
+
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking

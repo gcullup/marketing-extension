@@ -5,6 +5,7 @@ import { getAllPeople } from '../lib/ledger.js';
 const statusEl = document.getElementById('status');
 const pingBtn = document.getElementById('pingBtn');
 const pingResult = document.getElementById('pingResult');
+const reviewQueueLink = document.getElementById('reviewQueueLink');
 
 async function init() {
   try {
@@ -14,6 +15,10 @@ async function init() {
   } catch (err) {
     statusEl.textContent = `Storage error: ${err.message}`;
   }
+
+  const people = await getAllPeople();
+  const pendingCount = people.filter((p) => p.state === 'needs_review').length;
+  reviewQueueLink.textContent = pendingCount ? `Review Queue (${pendingCount} waiting)` : 'Review Queue';
 }
 
 pingBtn.addEventListener('click', async () => {
