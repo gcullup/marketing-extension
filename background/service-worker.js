@@ -197,37 +197,53 @@ async function runDiscoveryBatch(tabId) {
     index++;
     candidatesTried++;
 
-    const scrapeResult = await sendToTab(tabId, {
-      type: 'SCRAPE_CANDIDATE',
-      name: candidate.name,
-      href: candidate.href,
-    });
+    // Confirmed live (2026-08-31): a single candidate's Claude call can fail
+    // schema validation even after the built-in retry, and previously that
+    // exception propagated straight out of this loop, aborting the entire
+    // batch and abandoning everyone after it — even though every candidate
+    // before it had already been safely recorded. One bad candidate should
+    // never take the rest of the batch down with it.
+    try {
+      const scrapeResult = await sendToTab(tabId, {
+        type: 'SCRAPE_CANDIDATE',
+        name: candidate.name,
+        href: candidate.href,
+      });
 
-    if (!scrapeResult.ok) {
-      results.push({ name: candidate.name, error: scrapeResult.reason });
-      continue;
-    }
-    if (scrapeResult.skippedScrape) {
-      // Already known — doesn't count toward today's limit, since nothing
-      // new was screened.
-      results.push({ name: candidate.name, ledgerState: scrapeResult.ledgerState, skipped: true });
-      continue;
-    }
+      if (!scrapeResult.ok) {
+        results.push({ name: candidate.name, error: scrapeResult.reason });
+        continue;
+      }
+      if (scrapeResult.skippedScrape) {
+        // Already known — doesn't count toward today's limit, since nothing
+        // new was screened.
+        results.push({ name: candidate.name, ledgerState: scrapeResult.ledgerState, skipped: true });
+        continue;
+      }
 
-    const screenResult = await screenAndRecord({
-      text: scrapeResult.text,
-      links: scrapeResult.links,
-      targetName: candidate.name,
-      profileUrl: scrapeResult.finalUrl,
-    });
-    results.push({
-      name: candidate.name,
-      tier: screenResult.tier,
-      verdict: screenResult.verdict,
-      confidence: screenResult.confidence,
-      ledgerState: screenResult.ledgerState,
-    });
-    newlyScreened++;
+      const screenResult = await screenAndRecord({
+        text: scrapeResult.text,
+        links: scrapeResult.links,
+        targetName: candidate.name,
+        profileUrl: scrapeResult.finalUrl,
+      });
+      results.push({
+        name: candidate.name,
+        tier: screenResult.tier,
+        verdict: screenResult.verdict,
+        confidence: screenResult.confidence,
+        ledgerState: screenResult.ledgerState,
+      });
+      newlyScreened++;
+    } catch (err) {
+      await log('error', 'Candidate screening failed — continuing batch', {
+        name: candidate.name,
+        error: err.message,
+      });
+      results.push({ name: candidate.name, error: err.message });
+      // Not recorded to the ledger, so this candidate is naturally retried
+      // on the next batch run rather than being permanently skipped.
+    }
   }
 
   await log('info', 'Discovery batch finished', { todayKey, dailyLimit, newlyScreened, stoppedReason });

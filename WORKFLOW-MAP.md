@@ -311,8 +311,24 @@ the exact collision with the buggy version first, confirmed the fix resolves it,
 normal username-style URLs (Giuseppe, Jay Fayz) are unaffected. The stale `"profile.php"` ledger
 entry (holding Dave Snider's data) is now orphaned dead data — harmless, never looked up again
 under the new key scheme; Dave gets correctly re-screened under his real id next time he comes up.
-**Pending: Greg re-runs a batch and confirms previously wrongly-skipped numeric-ID profiles now
-get properly screened.**
+
+**Third real bug, same retest (2026-08-31):** the retest batch reached Jay Carrillo, then the whole
+batch aborted with "Claude response failed schema validation" — a single flaky Haiku response
+(confirmed this can happen live, not hypothetical) propagated straight out of the loop and killed
+the run, abandoning Andrew Lee and everyone after him without even trying them. Two real gaps,
+both fixed:
+- `lib/claude.js` never actually implemented the retry-on-malformed-response behavior that
+  ARCHITECTURE.md had described as the design intent from the start — verified the retry control
+  flow in a live browser JS engine (recovers after one transient failure; surfaces both error
+  messages if it genuinely fails twice) before wiring it into `screenCandidate`.
+- `runDiscoveryBatch`'s per-candidate work is now wrapped in its own try/catch — one candidate's
+  persistent failure (even after the retry) is recorded as an error entry in `results` and the
+  batch continues to the next candidate, rather than aborting everything after it. A failed
+  candidate isn't written to the ledger, so it's naturally retried on the next batch run rather
+  than being permanently skipped.
+
+**Pending: Greg re-runs a batch and confirms (a) previously wrongly-skipped numeric-ID profiles
+now get properly screened, and (b) a batch survives a single flaky AI response without aborting.**
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
