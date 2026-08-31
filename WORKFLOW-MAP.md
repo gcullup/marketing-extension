@@ -63,8 +63,11 @@ Update this file at the end of every working session.
       brand-new field" case — real customizations survive, true gaps backfill). This does NOT
       un-damage fields that already hold an explicit wrong value (they're not "missing" anymore) —
       added a **Reset to Defaults** button (repopulates the form only; nothing saves until you
-      click Save Settings) as the actual remedy for the already-damaged data. Greg needs to reload
-      the extension, click Reset to Defaults, review, then Save.
+      click Save Settings) as the actual remedy for the already-damaged data.
+      **Follow-up, confirmed not a bug:** Greg fixed the scan-limit grid by typing values in
+      directly rather than using Reset to Defaults — that's expected behavior (already-present
+      values, even wrong ones, are left alone by design; only Reset or manual entry overwrites
+      them). Message templates remain blank pending Greg using Reset or entering his own wording.
 - [ ] 0.13 Claude API client (`lib/claude.js`) — structured output, validation, retry, response cache
 - [ ] 0.14 `selectors.js` — ALL Facebook DOM selectors isolated in one file (currently placeholders,
       see content/selectors.js — unverified against the live DOM)
