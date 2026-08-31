@@ -163,7 +163,16 @@ navigation the same way a real user click does — not safe to assume (some site
 elements on `event.isTrusted`). Added a **"Test Click First Candidate"** button — this one is NOT
 read-only, it actually clicks and navigates to a real profile (harmless, equivalent to Greg
 clicking it himself; does not touch Add Friend). Polls `isProfileUrl` for up to 6s after the click
-and reports elapsed time / success. Pending Greg's test.
+and reports elapsed time / success.
+**Confirmed live (2026-08-31):** programmatic click worked — navigated to Steven Enns's profile in
+251ms. No `event.isTrusted` gating issue on this element.
+
+**Next: full single-candidate read path.** Added **"Test Full Candidate Scrape"** — click first
+candidate → wait for navigation → scroll the detail pane a randomized 5/15/25 times (matching the
+old tool, with small randomized delays between scrolls) → extract all visible text → report length
++ a 500-char preview. This is task 1.1's entire read side for one candidate, chained end to end.
+Still no Add Friend click. Pending Greg's test — specifically whether real bio/industry content
+actually shows up in the extracted text preview.
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old

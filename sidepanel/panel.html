@@ -30,7 +30,8 @@
       }
       #pingResult,
       #scrapeResult,
-      #clickResult {
+      #clickResult,
+      #fullScrapeResult {
         font-size: 12px;
         color: #555;
         margin-top: 8px;
@@ -55,6 +56,10 @@
       <button id="testClickBtn">Test Click First Candidate (navigates to their real profile — no Add Friend click)</button>
     </p>
     <div id="clickResult"></div>
+    <p>
+      <button id="testFullScrapeBtn">Test Full Candidate Scrape (click + scroll + extract text — takes a few seconds)</button>
+    </p>
+    <div id="fullScrapeResult"></div>
     <p><a href="settings.html" target="_blank">Settings</a></p>
     <script type="module" src="panel.js"></script>
   </body>

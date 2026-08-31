@@ -69,4 +69,23 @@ testClickBtn.addEventListener('click', async () => {
   });
 });
 
+const testFullScrapeBtn = document.getElementById('testFullScrapeBtn');
+const fullScrapeResult = document.getElementById('fullScrapeResult');
+
+testFullScrapeBtn.addEventListener('click', async () => {
+  fullScrapeResult.textContent = 'Clicking, waiting, scrolling, extracting… this can take up to ~15s.';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('facebook.com')) {
+    fullScrapeResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+    return;
+  }
+  chrome.tabs.sendMessage(tab.id, { type: 'TEST_FULL_CANDIDATE_SCRAPE' }, (response) => {
+    if (chrome.runtime.lastError) {
+      fullScrapeResult.textContent = `No response: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    fullScrapeResult.textContent = JSON.stringify(response, null, 2);
+  });
+});
+
 init();
