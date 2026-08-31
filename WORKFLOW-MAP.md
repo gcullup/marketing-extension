@@ -249,6 +249,19 @@ estate investor"), not string-distance tricks trying to approximate that. Revise
   **Pending: Greg adds a real Claude API key + model to Settings, then tests live** — this is the
   first piece that needs a real API key; nothing so far has required one.
 
+**Confirmed live with a real Claude API call (2026-08-31):** tested against Jay Fayz
+(`facebook.com/JayFayzMD`) — correctly fell through to the AI tier, which returned confidence 8/100
+with reasoning that specifically distinguished him as real-estate-*adjacent* (Managing Director of
+a fix-and-flip/DSCR lending firm) from the actual target persona (independent inspectors/
+appraisers) — a nuanced judgment no string-matching tier could make. Model used: Greg's configured
+`claude-haiku-4-5-20251001` (a sensible cheap/fast choice for high-volume screening). **This is the
+first fully-real, end-to-end proof of the complete screening pipeline**, not just the read path.
+
+**Gap identified, not yet built:** the `SCREEN_CANDIDATE` handler returns the raw AI result but
+does not yet apply the three-band verdict logic (auto-add / middle-band review / reject) from
+ARCHITECTURE.md — Settings currently only has one threshold (the 90% auto-add slider), not a
+separate reject floor needed for the middle band. This is task 1.6, still open.
+
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
       tool's 5/15/25 pattern), then grab all visible text from that pane as one blob — primitives
