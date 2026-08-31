@@ -1,4 +1,4 @@
-import { getSettings, saveSettings, exportAll, importAll } from '../lib/store.js';
+import { getSettings, saveSettings, exportAll, importAll, getDefaultSettings } from '../lib/store.js';
 import { log, getLogs, clearLogs } from '../lib/log.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,9 +20,7 @@ function toInt(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-async function populate() {
-  const s = await getSettings();
-
+function renderForm(s) {
   $('targetPersona').value = s.targetPersona ?? '';
   $('includeKeywords').value = keywordsToLines(s.includeKeywords);
   $('excludeKeywords').value = keywordsToLines(s.excludeKeywords);
@@ -50,6 +48,10 @@ async function populate() {
   $('testMode').checked = s.testMode !== false;
   $('autoSend').checked = s.autoSend === true;
   $('autoSendWarning').style.display = $('autoSend').checked ? 'block' : 'none';
+}
+
+async function populate() {
+  renderForm(await getSettings());
 }
 
 function collectFromForm() {
@@ -106,6 +108,12 @@ $('saveBtn').addEventListener('click', async () => {
   $('saveStatus').style.color = 'green';
   $('saveStatus').textContent = 'Saved.';
   setTimeout(() => ($('saveStatus').textContent = ''), 2500);
+});
+
+$('resetBtn').addEventListener('click', () => {
+  renderForm(getDefaultSettings());
+  $('saveStatus').style.color = '#8a5300';
+  $('saveStatus').textContent = 'Form reset to defaults — click Save Settings to keep this.';
 });
 
 $('exportBtn').addEventListener('click', async () => {

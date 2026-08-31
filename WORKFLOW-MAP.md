@@ -50,11 +50,21 @@ Update this file at the end of every working session.
 - [x] 0.12 Settings page — target persona, include/exclude keyword lists, confidence threshold
       slider, daily scan match limits per day of week, send caps, message templates (`{firstName}`
       token), timing, Claude API key + model ID, Test Mode / auto-send toggles, plus export/import
-      backup and a log viewer. Storage schema in `lib/store.js` expanded to match. Helper logic
-      (keyword parsing, numeric fallback handling — importantly, a legitimate `0` scan-limit isn't
-      confused with invalid input) verified in a live browser JS engine. **Still needs: a real
-      load-unpacked-and-click-through check in Chrome to confirm the full save/reload round trip**
-      — this local sandbox can't execute `chrome.storage` calls outside a real extension context.
+      backup and a log viewer. Storage schema in `lib/store.js` expanded to match.
+      **Real-world test by Greg found a genuine bug**: this install already existed from the
+      Phase 0 skeleton test, predating the expanded schema. `initSettingsIfMissing()` only wrote
+      defaults when the storage key was *entirely* absent, so the new fields (scan limits, message
+      templates, higher caps) came back `undefined`, the form's fallbacks silently substituted
+      wrong values (blank templates, all-zero scan limits, old lower caps), and clicking Save wrote
+      those wrong values back permanently. Confirmed by diffing Greg's exported backup JSON against
+      the intended defaults. **Fixed:** `getSettings()` now deep-merges any genuinely missing field
+      from `DEFAULT_SETTINGS` into what's stored (self-healing on every read, verified in a live
+      browser JS engine against both the actual damaged data and a simulated "old install gets a
+      brand-new field" case — real customizations survive, true gaps backfill). This does NOT
+      un-damage fields that already hold an explicit wrong value (they're not "missing" anymore) —
+      added a **Reset to Defaults** button (repopulates the form only; nothing saves until you
+      click Save Settings) as the actual remedy for the already-damaged data. Greg needs to reload
+      the extension, click Reset to Defaults, review, then Save.
 - [ ] 0.13 Claude API client (`lib/claude.js`) — structured output, validation, retry, response cache
 - [ ] 0.14 `selectors.js` — ALL Facebook DOM selectors isolated in one file (currently placeholders,
       see content/selectors.js — unverified against the live DOM)
