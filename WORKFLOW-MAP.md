@@ -286,8 +286,17 @@ correctly yields `verdict: "reject"`.
       verdict values. Wired into `SCREEN_CANDIDATE`: a person already in the ledger is now returned
       from cache (`fromCache: true`) instead of re-running keyword tiers or spending another AI
       call — the actual dedupe payoff. Added a "View Ledger" button to the side panel to inspect
-      what's recorded. **Pending: Greg re-tests AI Screening twice in a row on the same candidate
-      to confirm the second run comes back from cache.**
+      what's recorded.
+
+**Real gap found live (2026-08-31):** Greg re-tested and the cache hit was correct
+(`fromCache: true`, right ledger state, right confidence) — but the full click + wait + 25-scroll
+sequence still ran first. The dedupe check lived in `SCREEN_CANDIDATE`, which only runs *after*
+the content script has already done the entire expensive scrape — the caching saved the AI call
+and keyword checks, but not the actual point of dedupe: never touching Facebook for someone
+already decided. **Fixed:** added a `CHECK_CACHED_SCREENING` message so the content script can ask
+the background "do we already know this person?" using just their list-page href — available
+before ever clicking — and skip the click/wait/scroll entirely on a hit. `TEST_FULL_CANDIDATE_SCRAPE`
+now checks this immediately after picking a candidate, before `clickCandidate` is ever called.
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
 - [ ] 1.5 Claude screening call for the remainder — batched, structured `{confidence, reason}`,
       prompt explicitly instructs typo/variant tolerance

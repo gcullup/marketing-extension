@@ -39,6 +39,14 @@
     });
   }
 
+  function checkCachedScreening(profileUrl) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'CHECK_CACHED_SCREENING', profileUrl }, (response) => {
+        resolve(chrome.runtime.lastError ? { cached: false } : response);
+      });
+    });
+  }
+
   function waitForProfileUrl(timeoutMs = 6000) {
     return new Promise((resolve, reject) => {
       const startedAt = Date.now();
@@ -111,6 +119,24 @@
           return;
         }
         const target = candidates[0];
+
+        // Check the ledger BEFORE ever clicking — the whole point of
+        // caching is skipping the expensive DOM work (click, wait, 5-25
+        // scrolls) for someone already screened, not just skipping the AI
+        // call after doing all of that anyway.
+        const cacheCheck = await checkCachedScreening(target.href);
+        if (cacheCheck.cached) {
+          sendResponse({
+            ok: true,
+            targetName: target.name,
+            finalUrl: target.href,
+            fromCache: true,
+            skippedScrape: true,
+            ...cacheCheck,
+          });
+          return;
+        }
+
         const clickResult = MKT.act.clickCandidate(target.href);
         if (!clickResult.clicked) {
           sendResponse({ ok: false, reason: clickResult.reason });

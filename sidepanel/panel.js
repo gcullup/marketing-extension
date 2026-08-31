@@ -110,6 +110,13 @@ testAiScreenBtn.addEventListener('click', async () => {
       return;
     }
 
+    if (scrapeResponse.skippedScrape) {
+      // Already in the ledger — the content script caught this before ever
+      // clicking or scrolling, so there's nothing new to send for scoring.
+      aiScreenResult.textContent = JSON.stringify(scrapeResponse, null, 2);
+      return;
+    }
+
     aiScreenResult.textContent = `Scraped ${scrapeResponse.targetName}. Screening (exclude → exact-include → AI)…`;
     chrome.runtime.sendMessage(
       {

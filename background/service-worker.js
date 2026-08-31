@@ -26,6 +26,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ type: 'PONG', from: 'background', at: Date.now() });
     return true;
   }
+  if (message?.type === 'CHECK_CACHED_SCREENING') {
+    // Lets the content script check the ledger using only the candidate's
+    // list-page href — BEFORE clicking, waiting for navigation, or
+    // scrolling — so an already-screened person never gets re-clicked and
+    // re-scrolled just to produce a result we already had. The dedupe
+    // benefit is worthless if it only kicks in after the expensive DOM
+    // work has already happened.
+    (async () => {
+      const { profileUrl } = message;
+      const id = profileUrl ? extractProfileId(profileUrl) : null;
+      if (!id) {
+        sendResponse({ cached: false });
+        return;
+      }
+      const existing = await getPerson(id);
+      if (existing?.screening) {
+        sendResponse({ cached: true, ledgerState: existing.state, ...existing.screening });
+      } else {
+        sendResponse({ cached: false });
+      }
+    })();
+    return true;
+  }
   if (message?.type === 'SCREEN_CANDIDATE') {
     // The DECIDE half of the pipeline. The content script only scrapes raw
     // text/links (DOING); this is where the tiering logic and the Claude
