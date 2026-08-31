@@ -1,0 +1,157 @@
+import { getSettings, saveSettings, exportAll, importAll } from '../lib/store.js';
+import { log, getLogs, clearLogs } from '../lib/log.js';
+
+const $ = (id) => document.getElementById(id);
+const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+function linesToKeywords(text) {
+  return text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function keywordsToLines(arr) {
+  return (arr ?? []).join('\n');
+}
+
+function toInt(value, fallback) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+async function populate() {
+  const s = await getSettings();
+
+  $('targetPersona').value = s.targetPersona ?? '';
+  $('includeKeywords').value = keywordsToLines(s.includeKeywords);
+  $('excludeKeywords').value = keywordsToLines(s.excludeKeywords);
+
+  $('confidenceThreshold').value = s.confidenceThreshold ?? 90;
+  $('confidenceValue').textContent = s.confidenceThreshold ?? 90;
+
+  for (const day of DAYS) {
+    $(`scan-${day}`).value = s.scanLimitsByDay?.[day] ?? 0;
+  }
+
+  $('maxRequestsPerDay').value = s.caps?.maxRequestsPerDay ?? 15;
+  $('maxMessagesPerDay').value = s.caps?.maxMessagesPerDay ?? 15;
+
+  $('introTemplate').value = s.messageTemplates?.intro ?? '';
+  $('birthdayTemplate').value = s.messageTemplates?.birthday ?? '';
+
+  $('minDelaySeconds').value = s.timing?.minDelaySeconds ?? 300;
+  $('maxDelaySeconds').value = s.timing?.maxDelaySeconds ?? 1800;
+  $('spreadHours').value = s.timing?.spreadHours ?? 8;
+
+  $('apiKey').value = s.claude?.apiKey ?? '';
+  $('model').value = s.claude?.model ?? '';
+
+  $('testMode').checked = s.testMode !== false;
+  $('autoSend').checked = s.autoSend === true;
+  $('autoSendWarning').style.display = $('autoSend').checked ? 'block' : 'none';
+}
+
+function collectFromForm() {
+  const scanLimitsByDay = {};
+  for (const day of DAYS) {
+    scanLimitsByDay[day] = toInt($(`scan-${day}`).value, 0);
+  }
+
+  return {
+    targetPersona: $('targetPersona').value.trim(),
+    includeKeywords: linesToKeywords($('includeKeywords').value),
+    excludeKeywords: linesToKeywords($('excludeKeywords').value),
+    confidenceThreshold: toInt($('confidenceThreshold').value, 90),
+    scanLimitsByDay,
+    caps: {
+      maxRequestsPerDay: toInt($('maxRequestsPerDay').value, 15),
+      maxMessagesPerDay: toInt($('maxMessagesPerDay').value, 15),
+    },
+    messageTemplates: {
+      intro: $('introTemplate').value,
+      birthday: $('birthdayTemplate').value,
+    },
+    timing: {
+      minDelaySeconds: toInt($('minDelaySeconds').value, 300),
+      maxDelaySeconds: toInt($('maxDelaySeconds').value, 1800),
+      spreadHours: toInt($('spreadHours').value, 8),
+    },
+    claude: {
+      apiKey: $('apiKey').value,
+      model: $('model').value.trim(),
+    },
+    testMode: $('testMode').checked,
+    autoSend: $('autoSend').checked,
+  };
+}
+
+$('confidenceThreshold').addEventListener('input', (e) => {
+  $('confidenceValue').textContent = e.target.value;
+});
+
+$('autoSend').addEventListener('change', (e) => {
+  $('autoSendWarning').style.display = e.target.checked ? 'block' : 'none';
+});
+
+$('saveBtn').addEventListener('click', async () => {
+  const values = collectFromForm();
+  if (values.timing.minDelaySeconds > values.timing.maxDelaySeconds) {
+    $('saveStatus').style.color = 'crimson';
+    $('saveStatus').textContent = 'Min delay must not exceed max delay.';
+    return;
+  }
+  await saveSettings(values);
+  await log('info', 'Settings saved');
+  $('saveStatus').style.color = 'green';
+  $('saveStatus').textContent = 'Saved.';
+  setTimeout(() => ($('saveStatus').textContent = ''), 2500);
+});
+
+$('exportBtn').addEventListener('click', async () => {
+  const dump = await exportAll();
+  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tng-marketing-extension-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  await log('info', 'Data exported');
+});
+
+$('importBtn').addEventListener('click', () => $('importFile').click());
+
+$('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const dump = JSON.parse(text);
+    await importAll(dump);
+    await log('info', 'Data imported', { file: file.name });
+    $('importStatus').textContent = `Imported ${file.name}. Reloading…`;
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    $('importStatus').textContent = `Import failed: ${err.message}`;
+  }
+});
+
+async function renderLogs() {
+  const entries = await getLogs();
+  const recent = entries.slice(-20).reverse();
+  $('logList').textContent = recent.length
+    ? recent
+        .map((e) => `[${new Date(e.ts).toLocaleString()}] ${e.level.toUpperCase()}  ${e.message}`)
+        .join('\n')
+    : 'No log entries yet.';
+}
+
+$('refreshLogsBtn').addEventListener('click', renderLogs);
+$('clearLogsBtn').addEventListener('click', async () => {
+  await clearLogs();
+  await renderLogs();
+});
+
+populate();
+renderLogs();

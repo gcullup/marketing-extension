@@ -7,17 +7,233 @@
       body {
         font-family: system-ui, sans-serif;
         padding: 16px;
-        max-width: 480px;
+        max-width: 560px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 24px 0 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #ddd;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin: 10px 0 3px;
+      }
+      .hint {
+        font-size: 11px;
+        color: #666;
+        font-weight: 400;
+        margin: 0 0 3px;
+      }
+      textarea,
+      input[type='text'],
+      input[type='password'],
+      input[type='number'] {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 13px;
+        padding: 5px 6px;
+      }
+      textarea {
+        min-height: 60px;
+        font-family: inherit;
+      }
+      .day-row {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+      }
+      .day-row div {
+        display: flex;
+        flex-direction: column;
+      }
+      .day-row label {
+        text-align: center;
+        margin: 0 0 2px;
+      }
+      .day-row input {
+        text-align: center;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .three-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+      }
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 10px 0;
+      }
+      .checkbox-row label {
+        margin: 0;
+        font-weight: 600;
+      }
+      .warning {
+        font-size: 11px;
+        color: #8a5300;
+        background: #fff6e5;
+        border: 1px solid #f0d999;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 4px;
+      }
+      #confidenceValue {
+        font-weight: 600;
+      }
+      button {
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #saveBtn {
+        margin-top: 20px;
+      }
+      #saveStatus {
+        font-size: 12px;
+        color: green;
+        margin-left: 10px;
+      }
+      #logList {
+        font-size: 11px;
+        max-height: 160px;
+        overflow-y: auto;
+        background: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 6px 8px;
+        white-space: pre-wrap;
+      }
+      .row-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
       }
     </style>
   </head>
   <body>
     <h1>Settings</h1>
-    <p>
-      The full settings page — target persona, include/exclude keywords, daily
-      scan and send limits per day of week, timing, message templates, Claude
-      API key, confidence threshold, and Test Mode — is built in workflow map
-      step 0.12.
+
+    <h2>Discovery</h2>
+
+    <label for="targetPersona">Target persona description</label>
+    <p class="hint">The AI uses this to score profiles it can't already resolve from the keyword lists below.</p>
+    <textarea id="targetPersona"></textarea>
+
+    <label for="includeKeywords">Include keywords (one per line)</label>
+    <p class="hint">Fuzzy-matched (tolerates typos) — a hit shortlists the profile immediately, no AI call needed.</p>
+    <textarea id="includeKeywords"></textarea>
+
+    <label for="excludeKeywords">Exclude keywords (one per line)</label>
+    <p class="hint">Fuzzy-matched, checked before any AI call — a hit is a permanent reject.</p>
+    <textarea id="excludeKeywords"></textarea>
+
+    <label for="confidenceThreshold">AI auto-add confidence threshold: <span id="confidenceValue">90</span>%</label>
+    <p class="hint">Profiles the AI scores at or above this go to the review queue automatically.</p>
+    <input type="range" id="confidenceThreshold" min="50" max="100" step="1" />
+
+    <h2>Daily Scan Match Limits</h2>
+    <p class="hint">How many shortlist matches the scanner collects before stopping, per day of week. Set a day to 0 to skip scanning that day.</p>
+    <div class="day-row">
+      <div><label>Sun</label><input type="number" id="scan-sun" min="0" /></div>
+      <div><label>Mon</label><input type="number" id="scan-mon" min="0" /></div>
+      <div><label>Tue</label><input type="number" id="scan-tue" min="0" /></div>
+      <div><label>Wed</label><input type="number" id="scan-wed" min="0" /></div>
+      <div><label>Thu</label><input type="number" id="scan-thu" min="0" /></div>
+      <div><label>Fri</label><input type="number" id="scan-fri" min="0" /></div>
+      <div><label>Sat</label><input type="number" id="scan-sat" min="0" /></div>
+    </div>
+
+    <h2>Daily Send Limits</h2>
+    <div class="two-col">
+      <div>
+        <label for="maxRequestsPerDay">Max friend requests per day</label>
+        <p class="hint">Facebook's own soft pending-request ceiling is ~200.</p>
+        <input type="number" id="maxRequestsPerDay" min="0" />
+      </div>
+      <div>
+        <label for="maxMessagesPerDay">Max messages per day</label>
+        <p class="hint">Messaging is the more heavily policed surface — keep this conservative.</p>
+        <input type="number" id="maxMessagesPerDay" min="0" />
+      </div>
+    </div>
+
+    <h2>Message Templates</h2>
+    <p class="hint">Use <code>{firstName}</code> where the person's first name should appear.</p>
+    <label for="introTemplate">Introductory message template</label>
+    <textarea id="introTemplate"></textarea>
+    <label for="birthdayTemplate">Birthday message template</label>
+    <textarea id="birthdayTemplate"></textarea>
+
+    <h2>Timing</h2>
+    <div class="three-col">
+      <div>
+        <label for="minDelaySeconds">Min delay between actions (sec)</label>
+        <input type="number" id="minDelaySeconds" min="0" />
+      </div>
+      <div>
+        <label for="maxDelaySeconds">Max delay between actions (sec)</label>
+        <input type="number" id="maxDelaySeconds" min="0" />
+      </div>
+      <div>
+        <label for="spreadHours">Spread queue over (hours)</label>
+        <input type="number" id="spreadHours" min="1" />
+      </div>
+    </div>
+
+    <h2>Claude API</h2>
+    <label for="apiKey">API key</label>
+    <p class="hint">Stored only in this browser's local extension storage — never leaves the device except in calls to Anthropic's API.</p>
+    <input type="password" id="apiKey" autocomplete="off" />
+    <label for="model">Model ID</label>
+    <p class="hint">e.g. claude-sonnet-5. Left as a setting on purpose — model IDs get retired.</p>
+    <input type="text" id="model" placeholder="claude-sonnet-5" />
+
+    <h2>Safety</h2>
+    <div class="checkbox-row">
+      <input type="checkbox" id="testMode" />
+      <label for="testMode">Test Mode — run the full pipeline but never click Add Friend or Send</label>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="autoSend" />
+      <label for="autoSend">Auto-send friend requests when AI confidence ≥ threshold</label>
+    </div>
+    <p class="warning" id="autoSendWarning" style="display: none;">
+      Assisted click is the recommended mode while selectors and prompts are still being verified —
+      auto-send skips your review entirely.
     </p>
+
+    <div>
+      <button id="saveBtn">Save Settings</button>
+      <span id="saveStatus"></span>
+    </div>
+
+    <h2>Data</h2>
+    <div class="row-buttons">
+      <button id="exportBtn">Export All Data</button>
+      <button id="importBtn">Import from File</button>
+      <input type="file" id="importFile" accept="application/json" style="display: none;" />
+    </div>
+    <p class="hint" id="importStatus"></p>
+
+    <h2>Recent Log Entries</h2>
+    <div class="row-buttons">
+      <button id="refreshLogsBtn">Refresh</button>
+      <button id="clearLogsBtn">Clear Logs</button>
+    </div>
+    <div id="logList">Loading…</div>
+
+    <script type="module" src="settings.js"></script>
   </body>
 </html>

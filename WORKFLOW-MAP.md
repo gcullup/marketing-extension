@@ -47,10 +47,14 @@ Update this file at the end of every working session.
       engine against the exact reported bug case ("real estatte investor" → matches "real estate
       investor" at ~95% similarity) plus 5 other include/exclude/no-match cases — 6/6 passed.
       Pure logic, no chrome.* dependency, so it's testable in isolation.
-- [ ] 0.12 Settings page — target persona description, include/exclude keyword lists, daily scan
-      match limits per day of week, send caps (requests/day, messages/day), timing (min/max delay,
-      spread-over-hours), message templates (`{firstName}` token), API key, model ID, confidence
-      threshold slider, Test Mode toggle, auto-send toggle
+- [x] 0.12 Settings page — target persona, include/exclude keyword lists, confidence threshold
+      slider, daily scan match limits per day of week, send caps, message templates (`{firstName}`
+      token), timing, Claude API key + model ID, Test Mode / auto-send toggles, plus export/import
+      backup and a log viewer. Storage schema in `lib/store.js` expanded to match. Helper logic
+      (keyword parsing, numeric fallback handling — importantly, a legitimate `0` scan-limit isn't
+      confused with invalid input) verified in a live browser JS engine. **Still needs: a real
+      load-unpacked-and-click-through check in Chrome to confirm the full save/reload round trip**
+      — this local sandbox can't execute `chrome.storage` calls outside a real extension context.
 - [ ] 0.13 Claude API client (`lib/claude.js`) — structured output, validation, retry, response cache
 - [ ] 0.14 `selectors.js` — ALL Facebook DOM selectors isolated in one file (currently placeholders,
       see content/selectors.js — unverified against the live DOM)
