@@ -22,6 +22,19 @@
       sendResponse(MKT.scrape.pageInfo());
       return true;
     }
+    if (message?.type === 'TEST_SCRAPE') {
+      // Read-only diagnostic: lists what the scraper can currently see on
+      // this page without clicking or navigating anything.
+      const candidates = MKT.scrape.listCandidates();
+      const listContainer = MKT.scrape.getListScrollContainer();
+      sendResponse({
+        pageIsProfile: MKT.scrape.isProfileUrl(location.href),
+        candidateCount: candidates.length,
+        candidates: candidates.slice(0, 5),
+        hasListScrollContainer: !!listContainer,
+      });
+      return true;
+    }
     return false;
   });
 })();

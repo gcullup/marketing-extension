@@ -28,11 +28,13 @@
         font-size: 13px;
         cursor: pointer;
       }
-      #pingResult {
+      #pingResult,
+      #scrapeResult {
         font-size: 12px;
         color: #555;
         margin-top: 8px;
         word-break: break-word;
+        white-space: pre-wrap;
       }
       a {
         font-size: 12px;
@@ -40,10 +42,14 @@
     </style>
   </head>
   <body>
-    <h1>TNG Marketing Extension — Phase 0 skeleton</h1>
+    <h1>TNG Marketing Extension</h1>
     <div id="status">Checking storage…</div>
     <button id="pingBtn">Ping content script (open a Facebook tab first)</button>
     <div id="pingResult"></div>
+    <p>
+      <button id="testScrapeBtn">Test Scrape (read-only — go to facebook.com/friends/suggestions first)</button>
+    </p>
+    <div id="scrapeResult"></div>
     <p><a href="settings.html" target="_blank">Settings</a></p>
     <script type="module" src="panel.js"></script>
   </body>

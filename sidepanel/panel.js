@@ -31,4 +31,23 @@ pingBtn.addEventListener('click', async () => {
   });
 });
 
+const testScrapeBtn = document.getElementById('testScrapeBtn');
+const scrapeResult = document.getElementById('scrapeResult');
+
+testScrapeBtn.addEventListener('click', async () => {
+  scrapeResult.textContent = 'Scraping (read-only)…';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('facebook.com')) {
+    scrapeResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+    return;
+  }
+  chrome.tabs.sendMessage(tab.id, { type: 'TEST_SCRAPE' }, (response) => {
+    if (chrome.runtime.lastError) {
+      scrapeResult.textContent = `No response: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    scrapeResult.textContent = JSON.stringify(response, null, 2);
+  });
+});
+
 init();

@@ -123,14 +123,37 @@ the same raw-text approach here rather than building brittle per-field selectors
 suggestions list stays visible and clickable the whole time; the URL updates (e.g. to
 `facebook.com/michele.s.bastone`) but nothing is a full navigation away from the list. So there are
 two independent scrollable regions (the candidate list, and the detail pane), not one page scroll.
-**Still needed from Greg:** which actual DOM element scrolls in each region — requested via a
-DevTools console snippet (using Chrome's `$0` "currently selected element" shorthand) rather than
-another large HTML paste, to get a precise, compact answer instead of dissecting a big blob.
+
+**Scroll containers confirmed live (2026-08-31), via a DevTools console snippet using Chrome's
+`$0` shorthand rather than another large HTML paste:**
+- List: a bare `<div>` with an obfuscated class, no `role`/`aria-label` — no stable selector
+  exists. Resolved by discovering it **algorithmically at runtime** instead: walk up
+  `parentElement` from a known-good anchor (`candidateProfileLink`) until `overflowY` is
+  `auto`/`scroll` and `scrollHeight > clientHeight`. Verified against a synthetic DOM in a live
+  browser JS engine — correctly found the real scrollable ancestor, not an intermediate wrapper.
+- Detail pane: the scrollable ancestor is `<html>` itself (`document.scrollingElement`) — it's a
+  normal whole-page/window scroll, not a nested container. Much simpler than the list.
+
+**Built into real code (not placeholders) in `content/scrape.js` and `content/act.js`:**
+`findScrollableAncestor` (the algorithm above), `isProfileUrl` (bare-profile-path detection,
+verified against 6 real/realistic URLs including the actual `?__tn__=...`-suffixed one Facebook
+sends), `listCandidates`, `getListScrollContainer`, `scrollList`, `scrollDetailPane`,
+`extractVisibleText` (whole-page text, matching the old validated approach — no per-field
+parsing), `clickCandidate`, `clickAddFriend` (Test-Mode-aware).
+
+**Read-only "Test Scrape" button added to the side panel** (`panel.html`/`panel.js` +
+`TEST_SCRAPE` message in `content.js`) so Greg can verify the list-detection and scroll-container
+logic against the live page **without clicking Add Friend or navigating anything** — reports
+candidate count, first 5 names/hrefs found, and whether a list scroll container was located.
+**Still needed: Greg reloads the extension + Facebook tab and reports what Test Scrape shows.**
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
-      (detected via URL change to a bare profile path), scroll its container a randomized number
-      of times (mirroring the old tool's 5/15/25 pattern), then grab all visible text from that
-      pane as one blob (no per-field parsing) — **blocked on identifying the two scroll containers**
+      (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
+      tool's 5/15/25 pattern), then grab all visible text from that pane as one blob — primitives
+      built above; **still needed: the orchestration loop that sequences click → wait-for-load →
+      scroll → extract → move to next candidate**, which belongs in the background service worker
+      per the DECIDE/DO split, plus a real answer for "how do we know the profile finished loading"
+      (candidate: poll until extracted text stops growing, or a fixed delay — untested either way)
 - [ ] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name)
 - [ ] 1.3 Person Ledger written to storage with dedupe (never re-surface a decided person)
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
