@@ -44,16 +44,40 @@
     }
   };
 
+  // Walks up from `startEl` looking for the nearest ancestor whose subtree
+  // contains an element matching `matchSelector`. Bounded so a missing match
+  // can't walk all the way to <html>.
+  function findAncestorContaining(startEl, matchSelector, maxDepth = 10) {
+    let el = startEl;
+    for (let i = 0; i < maxDepth && el; i++) {
+      el = el.parentElement;
+      if (!el) break;
+      const match = el.querySelector(matchSelector);
+      if (match) return { ancestor: el, match };
+    }
+    return null;
+  }
+
+  // Anchored on the Add Friend button, not the profile link — Facebook's own
+  // top nav (Home, Reels, Groups, Gaming, ...) also uses
+  // `a[role="link"][aria-label]`, so scanning for that selector directly
+  // pulls in nav-bar noise. Verified live: this misidentified 4 nav links as
+  // "candidates" before the fix. The Add Friend button has no such false
+  // positives, so real candidates are found by walking up from it instead.
   MKT.scrape.listCandidates = function () {
-    const links = document.querySelectorAll(MKT.selectors.candidateProfileLink);
-    return [...links].map((link) => ({
-      name: link.getAttribute('aria-label'),
-      href: link.href,
-    }));
+    const buttons = document.querySelectorAll(MKT.selectors.addFriendButton);
+    const results = [];
+    for (const btn of buttons) {
+      const found = findAncestorContaining(btn, MKT.selectors.candidateProfileLink);
+      if (found) {
+        results.push({ name: found.match.getAttribute('aria-label'), href: found.match.href });
+      }
+    }
+    return results;
   };
 
   MKT.scrape.getListScrollContainer = function () {
-    const anchor = document.querySelector(MKT.selectors.candidateProfileLink);
+    const anchor = document.querySelector(MKT.selectors.addFriendButton);
     if (!anchor) return null;
     return findScrollableAncestor(anchor);
   };

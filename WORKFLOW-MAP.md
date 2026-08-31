@@ -145,7 +145,16 @@ parsing), `clickCandidate`, `clickAddFriend` (Test-Mode-aware).
 `TEST_SCRAPE` message in `content.js`) so Greg can verify the list-detection and scroll-container
 logic against the live page **without clicking Add Friend or navigating anything** — reports
 candidate count, first 5 names/hrefs found, and whether a list scroll container was located.
-**Still needed: Greg reloads the extension + Facebook tab and reports what Test Scrape shows.**
+**Real bug found by Test Scrape on the live page (2026-08-31):** `candidateProfileLink`
+(`a[role="link"][aria-label]`) is too broad — it also matches Facebook's own top nav bar (Home,
+Reels, Groups, Gaming, ...), which uses the identical pattern. Live test returned those 4 nav
+links as "candidates" instead of real ones. **Fixed:** `listCandidates` and
+`getListScrollContainer` now anchor on the **Add Friend button** instead (nav bar has no such
+button — no false positives possible there) and walk up from each button to find its associated
+profile link via `findAncestorContaining`, rather than scanning the whole page for a link pattern
+that turns out not to be unique. Verified against a synthetic page containing both a 4-item fake
+nav bar and one real candidate card — correctly found only the real one. **Still needed: Greg
+reloads and re-runs Test Scrape to confirm this against the actual live page.**
 
 - [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load
       (detected via `isProfileUrl`), scroll it a randomized number of times (mirroring the old
