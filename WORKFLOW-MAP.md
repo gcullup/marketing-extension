@@ -361,6 +361,15 @@ silently dropped — `removed: false` alone isn't enough to tell "Test Mode bloc
 "button not found" apart from any other reason). **Pending: Greg checks Settings' Test Mode
 checkbox and re-runs; if it's on and this is intentional, turning it off should make Remove
 actually fire — the reason field will now say so either way.**
+
+**Confirmed (2026-08-31):** it was Test Mode. With it off, both fresh rejects this run
+(Mark-Becca Beal, David A Lisi) show `removed: true`. Remove-on-reject is working end to end. Also
+a strong sign the whole pipeline is healthy: this run produced 4 auto-added and several
+`needs_review` candidates from real, varied profiles — the first batch that looks like genuine
+day-to-day output rather than a test fixture. Noted for later, not urgent: all 4 auto-adds landed
+at exactly 92 confidence, worth watching whether that's a real pattern or coincidence once there's
+more volume. Pending: Greg visually confirms the two removed people are actually gone from the
+live suggestions list, not just that the function returned `true`.
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
