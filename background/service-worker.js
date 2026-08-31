@@ -234,6 +234,7 @@ async function runDiscoveryBatch(tabId) {
       // cached one — a cache hit means this was already attempted on an
       // earlier run.
       let removed;
+      let removedReason;
       if (screenResult.verdict === 'reject') {
         const removeResult = await sendToTab(tabId, {
           type: 'REMOVE_CANDIDATE',
@@ -241,6 +242,7 @@ async function runDiscoveryBatch(tabId) {
           testMode: settings.testMode,
         });
         removed = removeResult.removed;
+        removedReason = removeResult.reason; // surfaced so "removed: false" is never a guessing game
       }
 
       results.push({
@@ -250,6 +252,7 @@ async function runDiscoveryBatch(tabId) {
         confidence: screenResult.confidence,
         ledgerState: screenResult.ledgerState,
         removed,
+        removedReason,
       });
       newlyScreened++;
     } catch (err) {

@@ -352,8 +352,15 @@ profile link, exactly like the Add Friend button pattern), verified against a sy
 page that it can't cross-wire and click the wrong person's Remove button, and correctly avoids the
 same hidden-decoy trap as Add Friend. Wired into `runDiscoveryBatch`: fires immediately after a
 *fresh* reject verdict (not a cached one), gated by Test Mode like every other real click.
-**Pending: Greg confirms live that a rejected candidate actually disappears from the suggestions
-list.**
+
+**Retest result:** nothing disappeared, but both fresh rejects (Jay Carrillo, Anthony Pintaro)
+explicitly showed `removed: false` rather than an error — meaning the code ran and deliberately
+declined, most likely because Test Mode defaults to `true` and there's no record it was ever
+turned off. **Diagnostic gap fixed:** the batch result now also surfaces `removedReason` (was being
+silently dropped — `removed: false` alone isn't enough to tell "Test Mode blocked it" apart from
+"button not found" apart from any other reason). **Pending: Greg checks Settings' Test Mode
+checkbox and re-runs; if it's on and this is intentional, turning it off should make Remove
+actually fire — the reason field will now say so either way.**
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
