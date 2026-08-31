@@ -289,8 +289,30 @@ correctly yields `verdict: "reject"`.
       ARCHITECTURE.md hazard #2. Designed to degrade safely if this happens (every candidate is
       written to the ledger immediately, not buffered), but whether it actually gets killed
       mid-batch in practice is unknown until Greg runs a real batch.
-      **Pending: Greg clicks "Run Discovery Batch" and reports the result — especially whether it
-      completes in one shot or seems to die partway through.**
+
+**Confirmed live (2026-08-31), first real batch run:** completed in one shot with a scan limit of
+3 — no sign of the MV3 service-worker being killed mid-run, `stoppedReason: "daily_limit_reached"`
+as expected. This run only needed the candidates already visible (no list scrolling required), so
+it's not yet a real stress test of the MV3 risk above — that needs a larger batch or one that
+exhausts the visible list.
+
+**Second real false-negative bug found and fixed, same session (2026-08-31):** `extractProfileId`
+only read a profile's URL *path*. Anyone without a custom Facebook username uses the shape
+`facebook.com/profile.php?id=NNNN` — the path is just `/profile.php` for every such person, so the
+path segment alone collapsed **every numeric-ID profile onto the identical id `"profile.php"`**.
+In this exact batch run, three genuinely different people (Andrew Lee, Angel Ramos, Zac Smith)
+were silently reported as `skipped`/already-cached, when in fact none of them had ever been
+screened — they were colliding with an unrelated earlier test subject (Dave Snider) who happened
+to hit that same bogus shared id first. This is the same failure category as the original
+fuzzy-matching bug from this morning: a real candidate silently dropped rather than making noise
+about it. **Fixed:** `extractProfileId` now reads the real numeric id out of the `id` query
+parameter for `profile.php` URLs specifically. Verified in a live browser JS engine: reproduced
+the exact collision with the buggy version first, confirmed the fix resolves it, and confirmed
+normal username-style URLs (Giuseppe, Jay Fayz) are unaffected. The stale `"profile.php"` ledger
+entry (holding Dave Snider's data) is now orphaned dead data — harmless, never looked up again
+under the new key scheme; Dave gets correctly re-screened under his real id next time he comes up.
+**Pending: Greg re-runs a batch and confirms previously wrongly-skipped numeric-ID profiles now
+get properly screened.**
 - [x] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name) —
       `lib/ledger.js` built: `extractProfileId` (the username slug, lowercased) verified in a live
       browser JS engine against real URLs, including one with Facebook's `?__tn__=...` tracking
