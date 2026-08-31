@@ -83,7 +83,39 @@ instead. Flagging only so it doesn't surprise anyone reaching for `npm` later.
 
 ## Phase 1 — ENDPOINT 1: Step 1, Friend Discovery & Queueing
 
-- [ ] 1.1 Content script scrapes the friend-suggestions feed (handle virtual scrolling)
+**Confirmed mechanism (2026-08-31, from Greg, from the old tool):** `facebook.com/friends/suggestions`
+is a two-pane layout. The left-pane cards (verified against live DOM — see below) carry only a
+name, photo, and mutual-friend count; there is no bio/occupation text to keyword-match against at
+that level. The old tool clicked into each candidate, which loads their profile detail into a
+**right-hand pane**, then scrolled that right pane a **randomized number of times (5, 15, or 25 in
+the old tool)** to load enough content and to mimic human behavior — there's no reliable "end" to
+detect, hence the randomization rather than a fixed count. Bio/work/about text is read from that
+right pane, not the left list. This is a click-into-detail-then-scroll pattern, not a
+scroll-the-feed pattern — task 1.1 below is revised accordingly.
+
+**Verified against live DOM (2026-08-31, from Greg's pasted outerHTML) — left-pane list item:**
+- Add Friend button: `div[role="button"][aria-label="Add friend" i]` — **must exclude
+  `[aria-hidden="true"]`**. Facebook renders a hidden decoy copy of this button (and of the
+  post-request "Remove" button) for animation purposes; the real interactive one has `tabindex="0"`,
+  the decoy has `aria-hidden="true" tabindex="-1"`. Selecting the decoy would silently click nothing.
+- Candidate name + profile link: `a[role="link"][aria-label]` whose `aria-label` is the bare person
+  name — distinguishable from mutual-friend avatar links, which are prefixed
+  `"Profile picture of ... who is a mutual friend"`. `href` includes a `?__tn__=...` tracking
+  param on the photo link; a second, cleaner `href` (no query string) exists on the name-text link.
+- Mutual friend count: plain visible text matching `/^\d[\d,]* mutual friends?$/` — no selector
+  needed, just a text-pattern match.
+- All three selectors above were tested by injecting Greg's actual pasted markup into a sandbox DOM
+  and running the real `querySelectorAll` calls (not just eyeballed): the Add Friend selector
+  matched exactly the one real button and correctly excluded both hidden decoys, the profile-link
+  selector matched exactly Michele's own link and excluded both mutual-friend avatar links, and the
+  mutual-friends pattern correctly caught "150 mutual friends". Written into `content/selectors.js`.
+- **Still needed from Greg:** the right-hand detail pane's outerHTML (or at least its
+  bio/work/"Intro" section) after clicking a candidate, so `1.1` can be written against real markup
+  instead of another placeholder.
+
+- [ ] 1.1 Content script: click each left-pane candidate in turn, wait for the right pane to load,
+      scroll it a randomized number of times (mirroring the old tool's 5/15/25 pattern), extract
+      bio/work/about text from the right pane — **blocked on the right-pane DOM sample above**
 - [ ] 1.2 Normalize each candidate into a Person record (stable ID = profile URL/ID, never name)
 - [ ] 1.3 Person Ledger written to storage with dedupe (never re-surface a decided person)
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
