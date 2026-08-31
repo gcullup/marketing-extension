@@ -297,6 +297,13 @@ already decided. **Fixed:** added a `CHECK_CACHED_SCREENING` message so the cont
 the background "do we already know this person?" using just their list-page href — available
 before ever clicking — and skip the click/wait/scroll entirely on a hit. `TEST_FULL_CANDIDATE_SCRAPE`
 now checks this immediately after picking a candidate, before `clickCandidate` is ever called.
+**Confirmed fixed live (2026-08-31)** — after a full extension + tab reload (the first retest was
+a stale-reload false alarm, same class of issue as the earlier `chrome-extension://invalid`
+episode), a repeat "Test AI Screening" on an already-known candidate came back with
+`skippedScrape: true` and no visible click/scroll at all.
+
+**Person Ledger and dedupe: done and verified end-to-end, both the write path and the actual
+performance payoff.**
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
 - [ ] 1.5 Claude screening call for the remainder — batched, structured `{confidence, reason}`,
       prompt explicitly instructs typo/variant tolerance
