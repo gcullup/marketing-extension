@@ -118,11 +118,46 @@
   MKT.act.sendComposedMessage = async function (text, testMode) {
     const composer = document.querySelector(MKT.selectors.messageComposerInput);
     if (!composer) return { sent: false, reason: 'message composer not found' };
-    composer.focus();
 
+    // Real bug found live (2026-09-01): the first character was silently
+    // dropped, most likely because Lexical's own focus-time setup (it
+    // manages its own selection state on top of the native DOM) hadn't
+    // finished in the same tick as our .focus() call. Give it a moment to
+    // actually settle before typing starts, with one retry if it somehow
+    // still isn't the focused element.
+    composer.focus();
+    await delay(300);
+    if (document.activeElement !== composer) {
+      composer.focus();
+      await delay(300);
+    }
+
+    let typedCount = 0;
     for (const char of text) {
+      // Re-assert focus before every character as cheap insurance against
+      // losing it mid-typing — a second real bug found the same test run:
+      // typing stopped partway through and the tab closed, consistent with
+      // execCommand silently failing once the composer stopped being the
+      // focused/selected element. Focusing an element that's already
+      // focused is a no-op, so this doesn't disturb the caret when nothing
+      // actually went wrong.
+      if (document.activeElement !== composer) composer.focus();
       const inserted = document.execCommand('insertText', false, char);
-      if (!inserted) return { sent: false, reason: 'insertText command failed' };
+      if (!inserted) {
+        // Substantially more diagnostic detail than a bare failure — this
+        // exact failure mode wasn't reproducible outside a real Facebook
+        // session, so if it happens again this is what tells us why instead
+        // of guessing a third time.
+        return {
+          sent: false,
+          reason: 'insertText command failed partway through typing',
+          typedCount,
+          totalLength: text.length,
+          currentText: composer.textContent,
+          wasFocused: document.activeElement === composer,
+        };
+      }
+      typedCount++;
       const isPause = Math.random() < 0.12;
       await delay(isPause ? 150 + Math.random() * 250 : 35 + Math.random() * 90);
     }

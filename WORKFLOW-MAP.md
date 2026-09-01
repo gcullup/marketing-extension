@@ -774,8 +774,24 @@ hybrid (type up to where `{firstName}` was substituted, then paste the rest) —
 only receives the already-rendered plain text, so recovering that boundary would need extra
 plumbing that typing the whole message character-by-character makes unnecessary. Verified the
 character-by-character insertion mechanics (cursor advances correctly across awaited iterations,
-final text is correct) in a live browser JS sandbox before wiring in. **Pending: Greg re-tests a real
-send and confirms it now looks paced rather than instant.**
+final text is correct) in a live browser JS sandbox before wiring in.
+
+**Two more real bugs found on the very next live test (2026-09-01):** the first character of the
+message was silently dropped, and typing stopped about halfway through before the tab closed. Both
+are consistent with focus-related quirks that only show up against Facebook's real Lexical instance
+— not reproducible in a sandbox, since there's no way to fully imitate Lexical's own internal
+focus/selection management outside a real session. Best-guess fixes applied: a short settle delay
+(with one retry) after focusing the composer before typing starts, addressing the dropped first
+character; and re-asserting focus before every single character (a no-op if focus never actually
+left, so it shouldn't disturb typing that's working correctly) as insurance against whatever caused
+typing to stop partway. **Being direct that this is a best-effort fix, not a confirmed root-cause
+fix** — the exact mechanism Lexical uses that caused the original drop/stop isn't fully known.
+Because of that, the failure path now also returns much more diagnostic detail (how many characters
+were typed before failing, the composer's actual text at that point, whether it was still focused)
+so a repeat failure gives real data to diagnose instead of a third guess — the full result, including
+those extra fields, is captured in the log (`DM Queue: greeting DM attempt`, viewable in Settings'
+log viewer) even though the DM Queue's own status text only shows the short reason. **Pending: Greg
+re-tests a real send — if it still fails, the log entry for that attempt is what to report back.**
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send

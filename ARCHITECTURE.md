@@ -330,6 +330,15 @@ Message and send it.
   mean threading extra information through the pipeline just to reintroduce a split that typing the
   whole message character-by-character avoids needing at all.
 
+  **Two more real bugs found on the very next live test, same day:** the first character was
+  silently dropped, and typing stopped about halfway through before the tab closed. Both are
+  consistent with focus-related quirks in Facebook's real Lexical instance that can't be reproduced
+  in a sandbox. Applied as best-effort fixes, honestly not confirmed root-cause fixes: a settle
+  delay (with one retry) after focusing before typing starts, and re-asserting focus before every
+  character (a no-op if focus never actually left). The failure path now also returns much more
+  diagnostic detail (characters typed before failing, the composer's actual text, whether it was
+  still focused) so a repeat failure is data to diagnose, not another guess.
+
 ---
 
 ## Settings schema
