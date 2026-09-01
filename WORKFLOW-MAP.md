@@ -644,6 +644,16 @@ rejects harmlessly — swallowed since this is a UI nicety the batch doesn't dep
 **Pending: Greg runs a batch and confirms the spinner/progress bar actually animate and update
 live, and disappear correctly when the batch finishes.**
 
+**Panel decluttered (2026-09-01), per Greg's question about whether the old test buttons still
+earn their place.** Answer: keep them, but they're no longer daily-use tools — they map directly
+to the "selector rot" risk in ARCHITECTURE.md, letting a future breakage be isolated to a specific
+layer (list detection / click+nav / scroll+extract / the AI call) without running a whole batch.
+Reorganized rather than removed: Review Queue, Send Queue, Run Discovery Batch, and Settings now
+sit at the top as the actual daily-use flow; Ping/Test Scrape/Test Click/Test Full Scrape/Test AI
+Screening/View Ledger moved into a `<details>` "Diagnostics" section, collapsed by default. Pure
+markup reorganization — `panel.js` looks everything up by element ID, not DOM position or
+visibility, so no script changes were needed.
+
 ---
 
 ## Session Log

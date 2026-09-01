@@ -90,28 +90,7 @@
     <div id="status">Checking storage…</div>
     <p><a href="review.html" target="_blank" id="reviewQueueLink">Review Queue</a></p>
     <p><a href="send.html" target="_blank" id="sendQueueLink">Send Queue</a></p>
-    <button id="pingBtn">Ping content script (open a Facebook tab first)</button>
-    <div id="pingResult"></div>
-    <p>
-      <button id="testScrapeBtn">Test Scrape (read-only — go to facebook.com/friends/suggestions first)</button>
-    </p>
-    <div id="scrapeResult"></div>
-    <p>
-      <button id="testClickBtn">Test Click First Candidate (navigates to their real profile — no Add Friend click)</button>
-    </p>
-    <div id="clickResult"></div>
-    <p>
-      <button id="testFullScrapeBtn">Test Full Candidate Scrape (click + scroll + extract text — takes a few seconds)</button>
-    </p>
-    <div id="fullScrapeResult"></div>
-    <p>
-      <button id="testAiScreenBtn">Test AI Screening (needs a Claude API key in Settings first)</button>
-    </p>
-    <div id="aiScreenResult"></div>
-    <p>
-      <button id="viewLedgerBtn">View Ledger</button>
-    </p>
-    <div id="ledgerResult"></div>
+
     <p>
       <button id="runBatchBtn">Run Discovery Batch (screens up to today's scan limit — can take several minutes)</button>
       <span class="spinner" id="batchSpinner" style="display: none;"></span>
@@ -121,7 +100,38 @@
       <div class="progress-text" id="batchProgressText"></div>
     </div>
     <div id="batchResult"></div>
+
     <p><a href="settings.html" target="_blank">Settings</a></p>
+
+    <details style="margin-top: 16px;">
+      <summary style="cursor: pointer; font-size: 13px; color: #555;">
+        Diagnostics (for troubleshooting if something breaks — not needed day to day)
+      </summary>
+
+      <button id="pingBtn">Ping content script (open a Facebook tab first)</button>
+      <div id="pingResult"></div>
+      <p>
+        <button id="testScrapeBtn">Test Scrape (read-only — go to facebook.com/friends/suggestions first)</button>
+      </p>
+      <div id="scrapeResult"></div>
+      <p>
+        <button id="testClickBtn">Test Click First Candidate (navigates to their real profile — no Add Friend click)</button>
+      </p>
+      <div id="clickResult"></div>
+      <p>
+        <button id="testFullScrapeBtn">Test Full Candidate Scrape (click + scroll + extract text — takes a few seconds)</button>
+      </p>
+      <div id="fullScrapeResult"></div>
+      <p>
+        <button id="testAiScreenBtn">Test AI Screening (needs a Claude API key in Settings first)</button>
+      </p>
+      <div id="aiScreenResult"></div>
+      <p>
+        <button id="viewLedgerBtn">View Ledger</button>
+      </p>
+      <div id="ledgerResult"></div>
+    </details>
+
     <script type="module" src="panel.js"></script>
   </body>
 </html>
