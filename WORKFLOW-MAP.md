@@ -10,9 +10,12 @@ Update this file at the end of every working session.
   2026-08-31). Remaining before formal sign-off: 1.11 golden-set eval, 1.12 a full real
   low-volume day (one real send so far, not yet a full day).
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
-  pending. Endpoint 2 (Step 9 — greeting DM) — acceptance detection built 2026-09-01 (the
-  foundation everything else depends on); cohort query, AI-drafted DMs, review, and sending are
-  not built yet.
+  pending. Endpoint 2 (Step 9 — greeting DM) — **proven live end to end 2026-09-01**: acceptance
+  detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
+  send are all built and confirmed against real data. Remaining before sign-off: 2.6's daily cap is
+  shown and blocks sending only when it was already reached before the page loaded — clicking
+  several "Send Message" buttons in one sitting isn't stopped mid-session once the cap is crossed
+  (a real, known gap, not yet asked for); and 2.8 formal sign-off.
 
 ---
 
@@ -805,7 +808,9 @@ length (`20000 + text.length * 200`ms — generous headroom above the real ~35-4
 its message no longer specifically blames page load. The earlier focus-settle-delay fix is left in
 place too, since the missing-first-character symptom (reported in the same test) isn't explained by
 this timeout at all — a genuinely separate issue, most plausibly still the original focus-timing
-theory. **Pending: Greg re-tests a real send and confirms it now completes without cutting off.**
+theory. **Confirmed live (2026-09-01):** Greg re-tested — types all the way through with the human-like
+pacing, no cutoff, no dropped first character, message sends correctly. Step 9's greeting DM is now
+genuinely live and proven end to end, pacing included.
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send

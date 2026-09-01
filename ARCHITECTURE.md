@@ -344,6 +344,10 @@ Message and send it.
   mid-typing and force-closed the tab, misreported as a page-load failure. Fixed: the timeout now
   scales with message length (`20000 + text.length * 200`ms).
 
+  **Confirmed live (2026-09-01):** Greg re-tested — types all the way through with no cutoff and no
+  dropped character, message sends correctly. Step 9's greeting DM, pacing included, is genuinely
+  live and proven end to end.
+
 ---
 
 ## Settings schema
