@@ -100,6 +100,13 @@
     <div id="limitBanner"></div>
     <button id="refreshBtn">Refresh</button>
     <button id="resetBtn" style="background: #fff; color: #a33; border-color: #d99;">Reset Queue (delete everyone queued)</button>
+    <p>
+      <button id="processAllBtn" style="background: #1a7a1a; color: #fff; border-color: #1a7a1a;">
+        Process All (up to today's limit — sends automatically, ~8-18s apart, no per-person confirmation)
+      </button>
+      <button id="stopProcessingBtn" style="display: none; background: #a33; color: #fff; border-color: #a33;">Stop</button>
+    </p>
+    <div id="processAllStatus" style="font-size: 12px; color: #666; margin-bottom: 8px;"></div>
     <div id="empty">Nobody in the send queue right now.</div>
     <div id="cards"></div>
     <script type="module" src="send.js"></script>

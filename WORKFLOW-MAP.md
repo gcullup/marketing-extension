@@ -678,6 +678,33 @@ before clicking Send just showed a plain error describing the problem. Now the "
 that message is a real clickable link straight to `facebook.com/friends/suggestions` (opens in a
 new tab), so fixing it is one click instead of remembering the URL and switching tabs manually.
 
+**"Process All" Send Queue automation built (2026-09-01), per Greg's explicit request** — a real,
+deliberate step beyond assisted click (D6) toward the unattended-sequence behavior the (still
+otherwise-unused) `autoSend` setting was conceptually meant to represent. One button click now
+sends up to today's remaining limit automatically, one person after another, ~8-18 seconds apart,
+with no per-person confirmation, until the daily cap is reached or the queue runs dry. Built in
+`sidepanel/send.js`/`send.html`, reusing the exact same send logic as the manual button (the
+individual card's click handler was pulled out into a named `sendThisOne()` function, stored on the
+card as `card._sendThisOne` and keyed by `card.dataset.personId`, so Process All and a manual click
+share one implementation with zero duplication — same testMode/profile-page-fallback/ledger-write
+behavior either way). Skips past any card it already attempted this run (tracked via an
+`attemptedIds` Set) rather than retrying a failure forever — a failed send stays in the queue for a
+human to handle manually, exactly like it already did before this feature existed. The 8-18s
+inter-send wait is interruptible: `interruptibleDelay()` polls every 500ms instead of one long
+`setTimeout`, so clicking the new Stop button takes effect within about half a second rather than
+waiting out however much of the wait was left (verified directly in a live JS engine: an
+uninterrupted call ran the full requested duration, while one interrupted ~600ms in exited at
+~1000ms, not the full 2000ms requested). Two safety pieces added beyond exactly what Greg described,
+flagged to him before building: a `confirm()` dialog before starting, stating the exact behavior and
+today's person count, and a Stop button that appears once running and halts the loop after the
+current in-flight send finishes (an in-progress send is never aborted mid-click). The skip-past-a-
+failure logic and the 8-18s randomization bounds were each verified in a browser JS sandbox before
+being wired into the real code, followed by a full read-through of the assembled feature.
+**Not yet tested end-to-end against the live Send Queue page — recommend Greg first tries this with
+Test Mode ON**, since `sendThisOne()` already respects `testMode` via the same `SEND_FRIEND_REQUEST`
+path the manual button always used, so the full loop/pacing/stop behavior can be exercised safely
+with zero real Facebook actions before flipping Test Mode off.
+
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
 - [ ] 2.2 Tone guide + message template captured in settings
@@ -777,3 +804,4 @@ available option if it comes up.
 | 2026-08-31 | 0 | Moved repo to `C:\dev\marketing-extension`. Reviewed prior build's settings pages (screenshots). Confirmed root cause of old bug: fuzzy-matching false negatives. Resolved D1–D6; redesigned Step 1 into a three-tier fuzzy-keyword + AI pipeline with confidence bands. Added Test Mode as a Phase 0 requirement. Switched session to Sonnet for implementation work. |
 | 2026-08-31 | 1 | Full Step 1 core loop built and proven live end to end: extension skeleton, git/GitHub, `lib/fuzzy.js` (verified against the real bug case), real selectors verified against live Facebook DOM (Add Friend, profile link, mutual-friends pattern, Remove button, list scroll-container discovery), scrape/click/scroll/extract pipeline, `lib/claude.js` (real Anthropic API client with retry), exact-match/fuzzy-exclude/AI tiering, `lib/verdict.js` confidence bands, `lib/ledger.js` (Person Ledger with dedupe), `runDiscoveryBatch` orchestration loop, side panel Review Queue and Send Queue (assisted-click sending with a verified profile-page fallback), and Reset Queue. **First real friend request sent live** (Aaron Bihl). Eight-plus real bugs found and fixed along the way (see inline notes above for detail on each): fuzzy false negatives, candidate-detection false positives from Facebook's own nav bar, extraction picking up list noise instead of profile content, a ledger identity collision on numeric-ID profile URLs, a missing AI-call retry that let one flaky response abort an entire batch, an XSS risk from unsafe `innerHTML` interpolation in the Review Queue, a dedupe check that ran after the expensive scrape instead of before it, and a scoping bug in Add Friend clicking caught before it ever shipped. |
 | 2026-09-01 | 1 | Clarified two settings were completely inert (min/max delay, `autoSend`) by grepping the codebase rather than guessing — deferred a real fix pending an architecture decision (in-process delay vs. `chrome.alarms`). Verified auto-approve only ever changes ledger state, never touches the DOM, and confirmed no autonomous Add Friend path exists anywhere. Made the daily send limit variable per day of week (was flat), with a verified migration so Greg's already-configured value wasn't silently discarded. Added Reset Queue to Review/Send pages. Added a live spinner + progress bar to the side panel's batch runner, fed by a new fire-and-forget progress broadcast from the background loop. |
+| 2026-09-01 | 1/2 | Closed the inter-candidate pacing gap (3-15s between candidates in a scan batch). Built and verified stale-friend-request cleanup (cancel outstanding requests past `staleRequestDays`, both branches confirmed live). Made the Send Queue's "no suggestions tab" error message clickable. Built the "Process All" Send Queue automation (sends up to today's limit automatically, ~8-18s apart, with a confirm dialog and an interruptible Stop button) — code complete and read-through verified, pending Greg's first live test. |

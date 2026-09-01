@@ -178,15 +178,26 @@ Three genuinely distinct numbers — all three now built:
    originally a single flat number for every day). This drains the queue at a steady daily rate,
    independent of how many got added to it that same day.
    Built as the **Send Queue** (`sidepanel/send.html`/`send.js`) — **assisted click by design**
-   (Greg's explicit decision): the extension never sends anything unattended, every request needs
-   an explicit click there. The daily count is derived from the ledger's `requestedAt` timestamps
-   (via `countRequestedToday`) rather than a separate counter, keeping the ledger the single source
-   of truth — verified in a live browser JS engine against explicit dates spanning a day boundary.
-   Because sending is human-click-paced rather than automated, the randomized inter-action delays
-   used elsewhere in the system aren't needed here; the daily cap is the actual safety control.
-   When a queued person is no longer rendered in Facebook's (virtualized) suggestions list — the
-   same limitation already known from Remove — the Send Queue shows the real reason and a direct
-   link to their profile so Greg can complete it manually rather than hitting a dead end.
+   (Greg's explicit decision, D6): the extension never sends anything unattended, every request
+   needs an explicit click there. The daily count is derived from the ledger's `requestedAt`
+   timestamps (via `countRequestedToday`) rather than a separate counter, keeping the ledger the
+   single source of truth — verified in a live browser JS engine against explicit dates spanning a
+   day boundary. When a queued person is no longer rendered in Facebook's (virtualized) suggestions
+   list — the same limitation already known from Remove — the Send Queue shows the real reason and
+   a direct, clickable link to their profile (or to open a suggestions tab at all) so Greg can
+   complete it manually rather than hitting a dead end.
+
+   **"Process All" (2026-09-01), per Greg — a deliberate step beyond pure assisted click.** One
+   button click now sends up to today's remaining limit automatically, one person after another,
+   with a randomized 8-18s pause between sends and no per-person confirmation, until the cap is hit
+   or the queue runs dry. Individual per-card sends are still pure assisted click; this is an
+   explicitly-requested, opt-in automation layered on top, not a replacement for it — the daily cap
+   is still the hard ceiling either way, and every send (assisted or Process All) still writes to
+   the ledger identically. Reuses the exact same `sendThisOne()` logic as a manual click, so there
+   is no separate, divergent send path to keep correct. Guarded by a `confirm()` dialog before
+   starting (stating the exact behavior and count) and a Stop button that halts after the
+   in-flight send finishes — the wait between sends is checked every 500ms so Stop takes effect
+   within about half a second, not up to 18s late.
 
 Concrete example from Greg: scan 80, 5 auto-queue, human approves 17 more from review → 22 added to
 the queue that day. 10 friend requests release Monday (this day's send cap), 10 more Tuesday, and
@@ -362,7 +373,11 @@ Because the firm's Page and professional reputation live on that account, this i
 risk**, not only a technical one. The design mitigates it by choice:
 
 - Conservative, user-set daily caps
-- Human approval gates on anything outbound — always on DMs
+- Human approval gates on anything outbound — always on DMs; friend requests get a per-batch
+  confirmation (and a Stop button) via "Process All" rather than a per-person click, since Greg
+  explicitly chose to move that surface toward automation on 2026-09-01 (see "Sent" above) — worth
+  being honest that this is less conservative than pure assisted click, even though the requests
+  going out and the daily cap enforcing them are unchanged
 - Randomized, human-paced timing; never faster than a person could plausibly click
 - Only runs while Greg is at the machine, never unattended overnight
 - Immediate hard stop on any checkpoint, error, or unexpected page state
