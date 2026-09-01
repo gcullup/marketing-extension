@@ -6,8 +6,11 @@ Update this file at the end of every working session.
 - **Last updated:** 2026-08-31
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
 - **GitHub:** https://github.com/gcullup/marketing-extension
-- **Current phase:** Phase 0 — Architecture & Setup (no code written yet)
-- **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery)
+- **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
+  2026-08-31). Remaining before formal sign-off: 1.11 golden-set eval, 1.12 a full real
+  low-volume day (one real send so far, not yet a full day).
+- **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
+  pending. Endpoint 2 (Step 9 — greeting DM) not started.
 
 ---
 
@@ -505,18 +508,43 @@ mechanically in Test Mode.
       Not yet a full day of sustained real usage — that's still worth doing deliberately before
       calling this fully proven at volume (Facebook's response to sustained real activity over
       time is still unobserved).
-- [ ] 1.11 Golden-set eval — still open; a quality-regression guard for future prompt changes, not
-      urgent before real usage continues.
-- [ ] 1.13 ENDPOINT 1 SIGNED OFF — held open until 1.11/1.12 are actually complete, not just started.
-- [x] 1.10 Timing — **assisted-click sending doesn't need simulated inter-action delays**: a human
-      clicking one send at a time from the Send Queue already paces at human speed, so the
-      randomized-delay pattern used in the automated discovery batch doesn't apply here. The daily
-      cap is the real safety control for this surface. Documented as a deliberate scope decision,
-      not an oversight — revisit only if `autoSend` (unattended sending) is ever built.
 - [ ] 1.11 Golden-set eval: ~20 hand-labeled profiles **including known misspelling/variant cases**
-      from the confirmed prior bug, re-run after any prompt change
-- [ ] 1.12 End-to-end dry run in Test Mode, then one real low-volume day
-- [ ] 1.13 **ENDPOINT 1 SIGNED OFF**
+      from the confirmed prior bug, re-run after any prompt change — still open, not urgent before
+      real usage continues.
+- [ ] 1.13 ENDPOINT 1 SIGNED OFF — held open until 1.11/1.12 are actually complete, not just started.
+
+**Open question surfaced by Greg (2026-08-31), deliberately deferred — not a bug, a real design gap
+worth closing properly next session:** Settings' "Min/max delay between actions" (currently
+250s/1799s) and "Spread queue over N hours" **do nothing**. Verified directly — `grep` confirms
+`minDelaySeconds`/`maxDelaySeconds`/`spreadHours` are referenced only in `lib/store.js` (schema
+default) and `sidepanel/settings.js` (load/save/validate); no scan, batch, or send code ever reads
+them. They were carried over from the old tool's settings screenshot early in this rebuild without
+verifying how the old tool's code actually used them, and never wired into anything real.
+
+What IS controlling pacing today is a completely different, much finer-grained thing: a hardcoded
+~250–750ms delay between individual scroll gestures while reading one profile (`content.js`,
+`scrapeCandidateProfile`), with a 15% chance of a longer 1.5–3s "reading pause." Greg's memory of
+the old tool using sub-second delays almost certainly matches THIS concept, not the 250-1800
+*second* settings values, which were likely mismapped from the screenshot without knowing their
+real old-tool granularity.
+
+Two genuinely different things "delay between actions" could mean, next session should pick one
+deliberately rather than guess:
+1. **Between candidates within a scan batch** (e.g., pause several minutes after fully reading one
+   profile before starting the next) — the more valuable one for looking human at the batch level,
+   but it collides with the MV3 service-worker risk already flagged: `runDiscoveryBatch` is one
+   continuous background function, and Chrome can kill it after ~30s of no extension-API activity.
+   A multi-minute in-process sleep would very likely get the whole batch killed mid-run. Doing this
+   properly needs restructuring around `chrome.alarms` (schedule "process the next candidate" as a
+   real future wake-up, not a sleep) — a genuine architecture change, not a quick fix.
+2. **Between friend-request sends** — less architecturally fraught since sending is already
+   assisted-click (Greg naturally paces himself), but the setting could still enforce a *minimum*
+   gap even if he clicks faster than that.
+
+Quick, low-risk alternative not yet chosen: just wire the existing settings fields to the
+already-working scroll-tick delay instead of leaving them dead, and relabel them accurately. Greg
+chose to defer this decision to next session rather than pick under time pressure — noted here so
+it isn't reconstructed from memory later.
 
 ---
 
