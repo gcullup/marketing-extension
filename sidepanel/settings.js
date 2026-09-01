@@ -49,6 +49,7 @@ function renderForm(s) {
   $('spreadHours').value = s.timing?.spreadHours ?? 8;
 
   $('staleRequestDays').value = s.staleRequestDays ?? 14;
+  $('dmDelayDays').value = s.dmDelayDays ?? 2;
 
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
@@ -94,6 +95,7 @@ function collectFromForm() {
       spreadHours: toInt($('spreadHours').value, 8),
     },
     staleRequestDays: toInt($('staleRequestDays').value, 14),
+    dmDelayDays: toInt($('dmDelayDays').value, 2),
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),

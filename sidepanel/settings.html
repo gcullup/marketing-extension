@@ -207,6 +207,11 @@
     <p class="hint">A friend request that's still pending after this many days gets cancelled during "Check Accepted Friends," instead of sitting forever.</p>
     <input type="number" id="staleRequestDays" min="1" />
 
+    <h2>Greeting DM</h2>
+    <label for="dmDelayDays">Send the greeting DM after being accepted for (days)</label>
+    <p class="hint">An accepted friend shows up in the DM Queue once they've been accepted for more than this many days. Uses the Introductory message template below, with {firstName} filled in — no AI drafting.</p>
+    <input type="number" id="dmDelayDays" min="0" />
+
     <h2>Claude API</h2>
     <label for="apiKey">API key</label>
     <p class="hint">Stored only in this browser's local extension storage — never leaves the device except in calls to Anthropic's API.</p>

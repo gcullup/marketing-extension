@@ -1,12 +1,13 @@
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
-import { getAllPeople } from '../lib/ledger.js';
+import { getAllPeople, getDmCandidates } from '../lib/ledger.js';
 
 const statusEl = document.getElementById('status');
 const pingBtn = document.getElementById('pingBtn');
 const pingResult = document.getElementById('pingResult');
 const reviewQueueLink = document.getElementById('reviewQueueLink');
 const sendQueueLink = document.getElementById('sendQueueLink');
+const dmQueueLink = document.getElementById('dmQueueLink');
 
 async function refreshQueueCounts() {
   const people = await getAllPeople();
@@ -15,6 +16,10 @@ async function refreshQueueCounts() {
 
   const queuedCount = people.filter((p) => p.state === 'queued').length;
   sendQueueLink.textContent = queuedCount ? `Send Queue (${queuedCount} queued)` : 'Send Queue';
+
+  const settings = await getSettings();
+  const dmCount = (await getDmCandidates(settings.dmDelayDays)).length;
+  dmQueueLink.textContent = dmCount ? `DM Queue (${dmCount} eligible)` : 'DM Queue';
 }
 
 // The side panel stays open in the background while Review/Send Queue open

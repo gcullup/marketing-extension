@@ -719,15 +719,42 @@ fallback with no suggestions tab needed. The Stop button was also tested live an
 the run. "Process All" is now proven end to end, not just code-complete: send loop, pacing,
 profile-page fallback, and interruptibility all confirmed against real Facebook data.
 
-- [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
-      `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
-- [ ] 2.2 Tone guide + message template captured in settings
-- [ ] 2.3 Claude drafts opener referencing a real profile detail; hard length/tone constraints
-- [ ] 2.4 Draft review queue — read, edit, approve, or reject each message
-- [ ] 2.5 Messenger composer automation (highest-fragility surface in the system)
-- [ ] 2.6 Per-message approval gate + low daily cap
-- [ ] 2.7 Ledger state updates: `dm_sent`, reply detection if feasible
+**Design simplified (2026-09-01), per Greg:** no AI drafting for the greeting DM — just the existing
+static `messageTemplates.intro` (already configurable in Settings) with `{firstName}` filled in, same
+mechanism as the birthday template. Once it's sent, Greg takes over the conversation directly. This
+collapses the originally-scoped 2.2-2.4/2.7 items below into "render the existing template," so
+they're crossed off as no-longer-applicable rather than left open.
+
+- [x] 2.1 Cohort query — `getDmCandidates(dmDelayDays)` added to `lib/ledger.js`: accepted, never
+      DM'd, accepted strictly more than `settings.dmDelayDays` days ago (new Settings field, default
+      2 per Greg), sorted oldest-accepted-first. Verified in a live browser JS engine across the
+      boundary/already-messaged/too-recent cases.
+- [-] 2.2 Tone guide — not needed; the message is a fixed template, not AI-drafted.
+- [-] 2.3 AI-drafted opener — not needed per the simplified design above.
+- [-] 2.4 Draft review queue — not needed; nothing is drafted, so there's nothing to review before
+      sending beyond seeing the (fixed) rendered preview, which the new DM Queue page already shows.
+- [ ] 2.5 Messenger composer automation (highest-fragility surface in the system) — **next up**.
+      `profileMessageButton` was already captured/verified during 2.0's foundation work; what's
+      still needed is the composer input + send mechanism, not yet verified against the live DOM.
+- [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
+      default 15) already exists in settings from Phase 0, just not read by anything yet; the
+      approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send
+      action turns out to be (assisted click, matching D6, unless Greg says otherwise).
+- [-] 2.7 Reply detection — not needed; Greg takes over the conversation manually once the greeting
+      DM is sent, per the simplified design above.
 - [ ] 2.8 **ENDPOINT 2 SIGNED OFF**
+
+**Built today (2026-09-01), read-only so far:** new side panel page `sidepanel/dm.html`/`dm.js` ("DM
+Queue," linked from the main panel's Step 9 section, with a live eligible-count like Review/Send
+Queue) — lists the cohort from `getDmCandidates`, each card showing the person, days since
+acceptance, and the exact rendered message they'd receive (`lib/template.js`'s `renderTemplate`,
+verified against full names, a single-word name, a missing name, and a template using `{firstName}`
+twice). No automated send yet — each card links to the person's profile so Greg can message them
+manually in the meantime. **Pending: verify the Messenger composer's real DOM** (click Message on a
+live accepted friend's profile, inspect the resulting input box and however sending actually works —
+Enter key vs. a Send button) before the actual send action can be built — this is the one remaining
+piece of Step 9, and the system's flagged highest-fragility surface, so it gets the same
+never-guess-a-selector treatment as everything else this session.
 
 ---
 

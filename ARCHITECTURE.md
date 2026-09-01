@@ -259,11 +259,37 @@ this before today; `requested` was a dead end. That gap is now closed:
   exact-14-days boundary stays within the window, only strictly past it cancels) was verified in a
   live browser JS engine before wiring in.
 
-**Not yet built:** the actual DM cohort query (accepted AND never DM'd AND accepted ≥ N days ago),
-AI-drafted personalized openers (the original design intent — referencing something real from the
-profile, the same holistic approach as Step 1's screening, not just filling in the existing static
-`messageTemplates.intro`), a review/approve step for drafts, and the actual send-the-DM action
-(reusing the verified Message button selector). This is the foundation only.
+**Design simplified (2026-09-01), per Greg** — no AI drafting for the greeting DM. It's the existing
+static `messageTemplates.intro` (Settings) with `{firstName}` substituted in, same mechanism as the
+birthday template; once it's sent, Greg takes over the conversation directly, so there's no drafting,
+review-of-drafts, or reply-detection step to build for Step 9 at all. This removes most of the
+originally-scoped 2.2-2.4/2.7 work — Step 9 is now just: cohort query → render template → click
+Message and send it.
+
+- **`getDmCandidates(dmDelayDays)`** (`lib/ledger.js`) — the cohort query: `state === 'accepted'`,
+  never DM'd (`!dmSentAt`), and accepted strictly more than `settings.dmDelayDays` days ago (exactly
+  on the boundary still waits one more day), sorted oldest-accepted-first. Verified in a live browser
+  JS engine across the boundary case, the already-messaged case, and the too-recent case.
+- **`lib/template.js`** — `renderTemplate(template, person)`, a small shared helper (`{firstName}`
+  substitution only, extracting the first whitespace-separated token of the scraped name). Verified
+  against Aaron Bihl-style full names, a single-word name, a missing name, and a template using the
+  token twice.
+- **`markDmSent(id, message)`** (`lib/ledger.js`) — `accepted` → `dm_sent`, records the actual
+  message text sent (not just that *a* message went out) so a disputed "what did we actually say" is
+  auditable later, matching the discipline already used for AI screening calls.
+- **New Settings field, `dmDelayDays`** (default 2, per Greg) — a deliberately separate setting from
+  `staleRequestDays` even though both are day-count thresholds: one gates cancelling an unaccepted
+  request, this one gates messaging an accepted one.
+- **New side panel page, `sidepanel/dm.html`/`dm.js`** ("DM Queue") — lists the cohort, each card
+  showing the person, days since acceptance, and the exact rendered message they'd receive. Currently
+  **read-only** (a manual "open their profile to message them" link, no automated send yet) — the
+  actual click-Message/type/send action needs the Messenger composer's real DOM verified live first,
+  same discipline as every other Facebook interaction built this session. `profileMessageButton`
+  (`[aria-label="Message"][role="button"]`) was already captured and verified during Step 9's
+  foundation work (from the same Aaron Bihl page as the Friends-button acceptance signal), so opening
+  the composer is likely a short step once the actual composer input/send mechanism is confirmed —
+  the equivalent of `clickProfileAddFriend`. **Not yet built:** the actual composer automation
+  (`ARCHITECTURE.md` already flags this as the system's highest-fragility surface).
 
 ---
 
