@@ -673,6 +673,11 @@ genuinely cancelled on Facebook (`cancelled: true`). Reset to a real value (10 d
 of Step 9's foundational branches — acceptance detection and stale-request cleanup — are now proven
 against real data, not just verified in isolation.
 
+**Small Send Queue UX fix (2026-09-01), per Greg:** forgetting to have a suggestions tab open
+before clicking Send just showed a plain error describing the problem. Now the "open one" part of
+that message is a real clickable link straight to `facebook.com/friends/suggestions` (opens in a
+new tab), so fixing it is one click instead of remembering the URL and switching tabs manually.
+
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
 - [ ] 2.2 Tone guide + message template captured in settings

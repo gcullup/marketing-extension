@@ -103,7 +103,18 @@ function renderCard(person, remaining) {
 
     const tab = await findSuggestionsTab();
     if (!tab) {
-      statusEl.textContent = 'No facebook.com/friends/suggestions tab open — open one and try again.';
+      // A plain error message here just describes the problem; a clickable
+      // link actually lets Greg fix it in one click instead of remembering
+      // the URL and switching tabs himself.
+      statusEl.textContent = '';
+      statusEl.append('No facebook.com/friends/suggestions tab open — ');
+      const openLink = document.createElement('a');
+      openLink.href = 'https://www.facebook.com/friends/suggestions';
+      openLink.target = '_blank';
+      openLink.rel = 'noopener';
+      openLink.textContent = 'open one';
+      statusEl.append(openLink);
+      statusEl.append(', then try again.');
       sendBtn.disabled = false;
       return;
     }
