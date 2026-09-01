@@ -790,8 +790,22 @@ Because of that, the failure path now also returns much more diagnostic detail (
 were typed before failing, the composer's actual text at that point, whether it was still focused)
 so a repeat failure gives real data to diagnose instead of a third guess — the full result, including
 those extra fields, is captured in the log (`DM Queue: greeting DM attempt`, viewable in Settings'
-log viewer) even though the DM Queue's own status text only shows the short reason. **Pending: Greg
-re-tests a real send — if it still fails, the log entry for that attempt is what to report back.**
+log viewer) even though the DM Queue's own status text only shows the short reason.
+
+**Real root cause found from that diagnostic data (2026-09-01):** the log showed
+`"reason":"timed out loading their profile page"` — a DIFFERENT failure than the focus theory above.
+`sidepanel/dm.js`'s `sendGreetingDm` (mirroring `send.js`'s `sendViaProfilePage`) has a single
+timeout that spans the WHOLE round trip — page load, opening the composer, AND the actual typing —
+not just page load despite its old name and fixed 15s value. That 15s was sized for the original
+instant-paste flow; the moment real human-like pacing was added (character-by-character typing plus
+several seconds of pauses), any message longer than a few words legitimately took more than 15s
+total, so this leftover timeout fired mid-typing and force-closed the tab, misreported as a page-load
+failure when the page had loaded fine. **Fixed:** the timeout now scales with the actual message
+length (`20000 + text.length * 200`ms — generous headroom above the real ~35-400ms/char pace), and
+its message no longer specifically blames page load. The earlier focus-settle-delay fix is left in
+place too, since the missing-first-character symptom (reported in the same test) isn't explained by
+this timeout at all — a genuinely separate issue, most plausibly still the original focus-timing
+theory. **Pending: Greg re-tests a real send and confirms it now completes without cutting off.**
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send

@@ -331,13 +331,18 @@ Message and send it.
   whole message character-by-character avoids needing at all.
 
   **Two more real bugs found on the very next live test, same day:** the first character was
-  silently dropped, and typing stopped about halfway through before the tab closed. Both are
-  consistent with focus-related quirks in Facebook's real Lexical instance that can't be reproduced
-  in a sandbox. Applied as best-effort fixes, honestly not confirmed root-cause fixes: a settle
-  delay (with one retry) after focusing before typing starts, and re-asserting focus before every
-  character (a no-op if focus never actually left). The failure path now also returns much more
-  diagnostic detail (characters typed before failing, the composer's actual text, whether it was
-  still focused) so a repeat failure is data to diagnose, not another guess.
+  silently dropped, and typing stopped about halfway through before the tab closed. Applied a
+  best-effort (not confirmed root-cause) fix for the first: a settle delay after focusing before
+  typing starts, plus re-asserting focus before every character, since this only reproduces against
+  Facebook's real Lexical instance and can't be tested in a sandbox.
+
+  The second turned out to have a confirmed root cause, found from the returned diagnostic detail:
+  `sidepanel/dm.js`'s `sendGreetingDm` (mirroring `send.js`'s `sendViaProfilePage`) has a single
+  timeout spanning the ENTIRE round trip — page load, opening the composer, and the actual typing —
+  left at a fixed 15s from when the whole flow was near-instant. The moment human-like pacing was
+  added, any non-trivial message legitimately took longer than that, so the leftover timeout fired
+  mid-typing and force-closed the tab, misreported as a page-load failure. Fixed: the timeout now
+  scales with message length (`20000 + text.length * 200`ms).
 
 ---
 

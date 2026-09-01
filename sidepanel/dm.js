@@ -51,7 +51,24 @@ function sendGreetingDm(person, text, testMode) {
       }
       chrome.tabs.onUpdated.addListener(onUpdated);
 
-      timeoutHandle = setTimeout(() => finish({ sent: false, reason: 'timed out loading their profile page' }), 15000);
+      // Real bug found live (2026-09-01): this single deadline covers the
+      // WHOLE round trip (page load, opening the composer, and — since
+      // sendComposedMessage now types character-by-character with a
+      // human-like pace rather than instantly — the actual typing itself),
+      // not just page load despite the old fixed 15s value and message
+      // implying otherwise. That fixed 15s was sized for the original
+      // instant-paste flow; it started firing mid-typing and force-closing
+      // the tab the moment real pacing was added, misreported as "timed out
+      // loading their profile page" when the page had loaded fine. Scaled to
+      // the actual message length now, with a generous per-character
+      // allowance (well above the real ~35-400ms/char pace) plus a fixed
+      // buffer for page load, opening the composer, and the pre/post-send
+      // pauses in sendComposedMessage.
+      const timeoutMs = 20000 + text.length * 200;
+      timeoutHandle = setTimeout(
+        () => finish({ sent: false, reason: 'timed out — no response from their profile page within the expected time' }),
+        timeoutMs
+      );
     });
   });
 }
