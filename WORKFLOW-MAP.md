@@ -546,6 +546,19 @@ already-working scroll-tick delay instead of leaving them dead, and relabel them
 chose to defer this decision to next session rather than pick under time pressure — noted here so
 it isn't reconstructed from memory later.
 
+**Reset Queue built (2026-08-31), per Greg:** after a day of heavy testing, Review Queue (18
+waiting) and Send Queue (9 queued) had accumulated a lot of test-run artifacts with no way to clear
+them. Added `clearByState(state)` to `lib/ledger.js` — deletes matching records from the ledger
+entirely (not a bulk-reject), verified against a fake mixed-state ledger that it only touches the
+targeted state and leaves everything else (including real history like Aaron Bihl's `requested`
+record) untouched. Deliberate semantics: delete rather than reject, so anyone who reappears in a
+future scan gets freshly re-screened instead of being permanently blocked by today's testing. Wired
+into both `review.html` and `send.html` as a "Reset Queue" button, each scoped to only its own
+page's state, gated by a confirm dialog naming the exact count about to be deleted and reminding
+that it's unrecoverable without a prior Settings export.
+**Pending: Greg tries Reset Queue on both pages and confirms the count and post-reset state match
+expectations.**
+
 ---
 
 ## Phase 2 — ENDPOINT 2: Step 9, Initial Greeting DM

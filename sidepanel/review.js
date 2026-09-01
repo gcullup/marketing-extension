@@ -1,4 +1,4 @@
-import { listByState, approvePerson, skipPerson } from '../lib/ledger.js';
+import { listByState, approvePerson, skipPerson, clearByState } from '../lib/ledger.js';
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
 
@@ -6,6 +6,7 @@ const countEl = document.getElementById('count');
 const emptyEl = document.getElementById('empty');
 const cardsEl = document.getElementById('cards');
 const refreshBtn = document.getElementById('refreshBtn');
+const resetBtn = document.getElementById('resetBtn');
 
 function confidenceClass(confidence) {
   if (confidence >= 70) return 'high';
@@ -150,5 +151,19 @@ async function loadQueue() {
 }
 
 refreshBtn.addEventListener('click', loadQueue);
+
+resetBtn.addEventListener('click', async () => {
+  const count = cardsEl.children.length;
+  if (!count) return;
+  const confirmed = confirm(
+    `Delete all ${count} people currently in the Review Queue? This removes them from the ledger ` +
+      `entirely (not just their state) — if any reappear in a future scan, they'll be freshly ` +
+      `re-screened. This cannot be undone unless you've already exported a backup in Settings.`
+  );
+  if (!confirmed) return;
+  const deleted = await clearByState('needs_review');
+  await log('info', 'Review Queue reset', { deleted });
+  await loadQueue();
+});
 
 loadQueue();
