@@ -46,6 +46,19 @@
     // regardless of list state.
     profileAddFriendButton: '[aria-label^="Add Friend "][role="button"]:not([aria-hidden="true"])',
 
+    // Confirmed live (2026-09-01), from Aaron Bihl's real profile after he
+    // accepted the friend request sent earlier today: once accepted, the Add
+    // Friend button is replaced by a "Friends" button — plain, no dynamic
+    // name suffix, so an exact match is enough (unlike Add Friend/Remove).
+    // Verified this does NOT cross-match profileAddFriendButton — the two
+    // states are mutually exclusive on the real page. This is Step 9's
+    // foundational signal: "has this person actually accepted."
+    profileFriendsButton: '[aria-label="Friends"][role="button"]:not([aria-hidden="true"])',
+
+    // Same real page, same verification pass — needed for Step 9's actual
+    // DM-sending step later (opens the message composer).
+    profileMessageButton: '[aria-label="Message"][role="button"]:not([aria-hidden="true"])',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

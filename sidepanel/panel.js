@@ -235,4 +235,32 @@ runBatchBtn.addEventListener('click', async () => {
   });
 });
 
+const checkAcceptancesBtn = document.getElementById('checkAcceptancesBtn');
+const acceptancesResult = document.getElementById('acceptancesResult');
+const acceptancesSpinner = document.getElementById('acceptancesSpinner');
+
+// Doesn't need an active facebook.com tab the way the discovery batch and
+// scrape tests do — it opens its own background tab per person, so it can
+// run regardless of what's currently on screen.
+checkAcceptancesBtn.addEventListener('click', async () => {
+  checkAcceptancesBtn.disabled = true;
+  acceptancesSpinner.style.display = 'inline-block';
+  acceptancesResult.textContent = 'Checking pending requests — this opens a background tab per person…';
+
+  chrome.runtime.sendMessage({ type: 'CHECK_ACCEPTANCES' }, (response) => {
+    checkAcceptancesBtn.disabled = false;
+    acceptancesSpinner.style.display = 'none';
+
+    if (chrome.runtime.lastError) {
+      acceptancesResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+    if (!response?.ok) {
+      acceptancesResult.textContent = `Check failed: ${response?.error ?? 'unknown error'}`;
+      return;
+    }
+    acceptancesResult.textContent = JSON.stringify(response, null, 2);
+  });
+});
+
 init();

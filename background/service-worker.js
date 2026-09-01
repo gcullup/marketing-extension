@@ -8,7 +8,14 @@ import { log } from '../lib/log.js';
 import { matchesAny, matchesAnyExact } from '../lib/fuzzy.js';
 import { screenCandidate } from '../lib/claude.js';
 import { computeVerdict } from '../lib/verdict.js';
-import { extractProfileId, getPerson, recordScreening, markRemovalAttempt } from '../lib/ledger.js';
+import {
+  extractProfileId,
+  getPerson,
+  recordScreening,
+  markRemovalAttempt,
+  listByState,
+  markAccepted,
+} from '../lib/ledger.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initSettingsIfMissing();
@@ -334,6 +341,73 @@ async function runDiscoveryBatch(tabId) {
   return { newlyScreened, results, stoppedReason, todayKey, dailyLimit };
 }
 
+// Step 9's foundational check, one person at a time: opens their real
+// profile in a background tab, waits for it to load, checks for the
+// Friends button (see content/scrape.js's checkFriendStatus), then cleans
+// up the tab either way. Mirrors send.js's sendViaProfilePage pattern
+// exactly — same reasoning applies: a background tab won't disrupt
+// whatever the user is doing in their active tab, and "complete" firing on
+// network load needs a little extra time before the SPA content itself has
+// actually rendered.
+function checkProfileFriendStatus(profileUrl) {
+  return new Promise((resolve) => {
+    chrome.tabs.create({ url: profileUrl, active: false }, (tab) => {
+      const tabId = tab.id;
+      let settled = false;
+      let timeoutHandle;
+
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        clearTimeout(timeoutHandle);
+        chrome.tabs.remove(tabId).catch(() => {});
+        resolve(result);
+      }
+
+      function onUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+        setTimeout(() => {
+          sendToTab(tabId, { type: 'CHECK_FRIEND_STATUS' })
+            .then(finish)
+            .catch((err) => finish({ isFriend: false, reason: err.message }));
+        }, 1500);
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+
+      timeoutHandle = setTimeout(() => finish({ isFriend: false, reason: 'timed out loading profile page' }), 15000);
+    });
+  });
+}
+
+/**
+ * Walks everyone currently in `requested` state and checks whether they've
+ * actually accepted. This is deliberately a separate, on-demand step, not
+ * something folded into the discovery batch — checking acceptance means
+ * opening a real background tab per person, which is a meaningfully
+ * different (and slower) kind of work than screening a suggestions list.
+ */
+async function checkAcceptances() {
+  const requested = await listByState('requested');
+  const results = [];
+  for (const person of requested) {
+    try {
+      const status = await checkProfileFriendStatus(person.profileUrl);
+      if (status.isFriend) {
+        await markAccepted(person.id);
+        await log('info', 'Friend request accepted', { name: person.name });
+        results.push({ name: person.name, accepted: true });
+      } else {
+        results.push({ name: person.name, accepted: false, reason: status.reason });
+      }
+    } catch (err) {
+      await log('error', 'Acceptance check failed — continuing', { name: person.name, error: err.message });
+      results.push({ name: person.name, accepted: false, error: err.message });
+    }
+  }
+  return { checked: requested.length, accepted: results.filter((r) => r.accepted).length, results };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'PING') {
     sendResponse({ type: 'PONG', from: 'background', at: Date.now() });
@@ -384,6 +458,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse(await runDiscoveryBatch(message.tabId));
       } catch (err) {
         await log('error', 'Discovery batch failed', { error: err.message });
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+  if (message?.type === 'CHECK_ACCEPTANCES') {
+    (async () => {
+      try {
+        sendResponse({ ok: true, ...(await checkAcceptances()) });
+      } catch (err) {
+        await log('error', 'Acceptance check batch failed', { error: err.message });
         sendResponse({ ok: false, error: err.message });
       }
     })();

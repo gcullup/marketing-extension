@@ -10,7 +10,9 @@ Update this file at the end of every working session.
   2026-08-31). Remaining before formal sign-off: 1.11 golden-set eval, 1.12 a full real
   low-volume day (one real send so far, not yet a full day).
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
-  pending. Endpoint 2 (Step 9 — greeting DM) not started.
+  pending. Endpoint 2 (Step 9 — greeting DM) — acceptance detection built 2026-09-01 (the
+  foundation everything else depends on); cohort query, AI-drafted DMs, review, and sending are
+  not built yet.
 
 ---
 
@@ -625,7 +627,23 @@ path today, provably so, not just by design intent.
 
 ## Phase 2 — ENDPOINT 2: Step 9, Initial Greeting DM
 
-- [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us
+- [x] 2.0 **Acceptance detection — the foundation everything else depends on, built 2026-09-01.**
+      Nothing tracked whether a friend request was actually accepted before today; `requested` was
+      a dead end. Detection signal verified live against Aaron Bihl's real profile (the first real
+      friend request this extension ever sent, confirmed accepted the same day): once accepted, Add
+      Friend is replaced by `[aria-label="Friends"][role="button"]` — confirmed it doesn't
+      cross-match the not-yet-accepted state. Also captured the Message button selector from the
+      same real page for the future send-the-DM step. Built: `MKT.scrape.checkFriendStatus`
+      (content script), `checkProfileFriendStatus`/`checkAcceptances` (background — walks everyone
+      in `requested`, opens each real profile in a background tab mirroring `send.js`'s proven
+      `sendViaProfilePage` pattern, checks, cleans up), `markAccepted` (ledger — sets `acceptedAt`,
+      needed for 2.1's cohort filter below). New "Check Accepted Friends" panel button, clearly
+      labeled as foundational/new rather than blended into the polished Discover/Review/Send flow.
+      See ARCHITECTURE.md's "Step 9 — foundation started" section for full detail.
+      **Pending: Greg clicks "Check Accepted Friends" and confirms Aaron Bihl (already known
+      accepted) gets correctly detected and moved to `accepted` in the ledger.**
+- [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
+      `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
 - [ ] 2.2 Tone guide + message template captured in settings
 - [ ] 2.3 Claude drafts opener referencing a real profile detail; hard length/tone constraints
 - [ ] 2.4 Draft review queue — read, edit, approve, or reject each message

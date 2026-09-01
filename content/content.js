@@ -236,6 +236,12 @@
       sendResponse(MKT.act.clickProfileAddFriend(message.testMode));
       return true;
     }
+    if (message?.type === 'CHECK_FRIEND_STATUS') {
+      // Same assumption as CLICK_PROFILE_ADD_FRIEND — caller has already
+      // navigated here.
+      sendResponse(MKT.scrape.checkFriendStatus());
+      return true;
+    }
     return false;
   });
 })();

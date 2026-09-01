@@ -155,4 +155,12 @@
     }
     return [...externalHrefs];
   };
+
+  // Step 9's foundational check: assumes the caller has already navigated
+  // to a specific person's own profile page. Only the Friends button's
+  // presence matters — that's the one signal the orchestration actually
+  // needs to decide "did they accept."
+  MKT.scrape.checkFriendStatus = function () {
+    return { isFriend: !!document.querySelector(MKT.selectors.profileFriendsButton) };
+  };
 })();

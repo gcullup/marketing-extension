@@ -210,6 +210,40 @@ earlier run), and gated by Test Mode like every other real click in the system.
 
 ---
 
+## Step 9 — foundation started (2026-09-01)
+
+Step 9 (queue an initial greeting DM to accepted friends who haven't been messaged) depends
+entirely on knowing who has actually accepted a friend request — nothing in the pipeline tracked
+this before today; `requested` was a dead end. That gap is now closed:
+
+- **Detection signal, verified live against Aaron Bihl's real profile** (the first real friend
+  request this extension ever sent, confirmed accepted the same day): once accepted, the Add
+  Friend button is replaced by a `[aria-label="Friends"][role="button"]` element — plain, no
+  dynamic name suffix (unlike Add Friend/Remove), confirmed it does not cross-match the "not yet
+  accepted" selector. The Message button (`[aria-label="Message"][role="button"]`) was captured
+  from the same real page at the same time, for the DM-sending step later.
+- **`MKT.scrape.checkFriendStatus`** (`content/scrape.js`) — assumes the caller has already
+  navigated to the target person's own profile page; reports only `{isFriend}`, since that's the
+  one signal the orchestration actually needs.
+- **`checkProfileFriendStatus` / `checkAcceptances`** (`background/service-worker.js`) — walks
+  everyone in `requested` state, opens each one's real profile in a background tab (mirroring
+  `send.js`'s `sendViaProfilePage` pattern exactly), checks status, cleans up the tab either way.
+  Deliberately a separate on-demand step, not folded into the discovery batch — opening a
+  background tab per person is meaningfully different work than screening a suggestions list.
+- **`markAccepted`** (`lib/ledger.js`) — `requested` → `accepted`, with `acceptedAt` set for the
+  eventual "accepted more than N days ago" cohort filter from the original Step 9 spec.
+- Side panel gained a **"Check Accepted Friends"** button, clearly labeled as new/foundational
+  rather than blended into the polished Discover/Review/Send flow — doesn't need an active
+  facebook.com tab the way scanning does, since it opens its own background tabs per person.
+
+**Not yet built:** the actual DM cohort query (accepted AND never DM'd AND accepted ≥ N days ago),
+AI-drafted personalized openers (the original design intent — referencing something real from the
+profile, the same holistic approach as Step 1's screening, not just filling in the existing static
+`messageTemplates.intro`), a review/approve step for drafts, and the actual send-the-DM action
+(reusing the verified Message button selector). This is the foundation only.
+
+---
+
 ## Settings schema
 
 Reconstructed from the prior build's settings pages, since it already reflects real usage:
