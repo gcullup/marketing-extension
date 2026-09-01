@@ -493,9 +493,21 @@ profile page structure differs, or the button truly isn't there).
 triggered, navigated, found the real Add Friend button, and Test Mode correctly blocked the click
 with the exact expected message. The entire sending path (list-based, profile-page fallback, and
 the Test Mode safety gate on both) is now verified working end to end. **Step 1's core loop —
-scan → screen → review → send — is fully built and mechanically proven.** Remaining before formal
-sign-off: 1.11 (golden-set eval) and 1.12 (one real low-volume day with Test Mode off), both of
-which are validation/rollout steps rather than new code.
+scan → screen → review → send — is fully built and mechanically proven.**
+
+**First real send, live (2026-08-31):** Greg turned Test Mode off and sent a real friend request
+to Aaron Bihl via the profile-page fallback path — it worked. This is the first real action this
+extension has ever taken on Facebook; everything before this was Test Mode or read-only. The full
+pipeline (scan → AI screen → ledger → review → send) has now been proven true end to end, not just
+mechanically in Test Mode.
+
+- [~] 1.12 One real low-volume day — **started**: one real send confirmed working (Aaron Bihl).
+      Not yet a full day of sustained real usage — that's still worth doing deliberately before
+      calling this fully proven at volume (Facebook's response to sustained real activity over
+      time is still unobserved).
+- [ ] 1.11 Golden-set eval — still open; a quality-regression guard for future prompt changes, not
+      urgent before real usage continues.
+- [ ] 1.13 ENDPOINT 1 SIGNED OFF — held open until 1.11/1.12 are actually complete, not just started.
 - [x] 1.10 Timing — **assisted-click sending doesn't need simulated inter-action delays**: a human
       clicking one send at a time from the Send Queue already paces at human speed, so the
       randomized-delay pattern used in the automated discovery batch doesn't apply here. The daily
