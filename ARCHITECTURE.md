@@ -165,26 +165,39 @@ for a second provider shows up.
 
 ## Scan volume vs. send volume vs. the queue (Greg's spec, 2026-08-31)
 
-Three genuinely distinct numbers, not built yet beyond the first:
+Three genuinely distinct numbers — all three now built:
 
 1. **Scanned** — total profiles evaluated per day, regardless of verdict (`scanLimitsByDay`,
-   default 80/day). **Built** — this is `runDiscoveryBatch`'s `dailyLimit`.
+   default 80/day). This is `runDiscoveryBatch`'s `dailyLimit`.
 2. **Queued** — the accumulating pool of people who've cleared screening and are waiting for a
    friend request: auto-added (AI verdict ≥ auto-approve threshold, or an exact-include match) PLUS
-   whatever Greg manually approves out of the `needs_review` pile via the (not-yet-built) review
-   queue UI. This pool has no daily cap of its own — it just accumulates. **Not built** (depends on
-   task 1.7, the review queue).
-3. **Sent** — friend requests actually released per day, capped by the *existing*
-   `caps.maxRequestsPerDay` setting (already in Settings, currently unwired to anything). This
+   whatever Greg manually approves out of the `needs_review` pile via the review queue
+   (`sidepanel/review.html`). This pool has no daily cap of its own — it just accumulates.
+3. **Sent** — friend requests actually released per day, capped by `caps.maxRequestsPerDay`. This
    drains the queue at a steady daily rate, independent of how many got added to it that same day.
-   **Not built** (task 1.9 — the actual assisted-click sending mechanism, plus a per-day counter
-   that resets at local midnight, per task 1.10).
+   Built as the **Send Queue** (`sidepanel/send.html`/`send.js`) — **assisted click by design**
+   (Greg's explicit decision): the extension never sends anything unattended, every request needs
+   an explicit click there. The daily count is derived from the ledger's `requestedAt` timestamps
+   (via `countRequestedToday`) rather than a separate counter, keeping the ledger the single source
+   of truth — verified in a live browser JS engine against explicit dates spanning a day boundary.
+   Because sending is human-click-paced rather than automated, the randomized inter-action delays
+   used elsewhere in the system aren't needed here; the daily cap is the actual safety control.
+   When a queued person is no longer rendered in Facebook's (virtualized) suggestions list — the
+   same limitation already known from Remove — the Send Queue shows the real reason and a direct
+   link to their profile so Greg can complete it manually rather than hitting a dead end.
 
 Concrete example from Greg: scan 80, 5 auto-queue, human approves 17 more from review → 22 added to
 the queue that day. 10 friend requests release Monday (this day's send cap), 10 more Tuesday, and
 so on — the queue keeps growing from ongoing scanning/reviewing even as it drains at the slower
-send rate. **This is the definitive spec for tasks 1.7/1.9/1.10 — build against this, not a
-reconstruction from memory later.**
+send rate. This was the definitive spec for tasks 1.7/1.9/1.10, and all three are now built against
+it exactly as specified.
+
+**Fixed before it was ever wired to anything:** an earlier `MKT.act.clickAddFriend`, built in
+Phase 0 before the per-candidate scoping pattern existed, grabbed the first Add Friend button
+anywhere on the page — the identical bug already found and fixed for Remove. Replaced with
+`MKT.act.sendFriendRequest(href, testMode)`, scoped to the specific candidate exactly like Remove,
+verified against a synthetic two-person page that it can't cross-wire and click the wrong person's
+button.
 
 **Rejected candidates get dismissed from Facebook's own suggestions list** via its "Remove"
 affordance, so they stop cluttering future scans instead of just sitting inert in the ledger. Built

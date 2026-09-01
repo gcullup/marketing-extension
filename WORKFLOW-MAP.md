@@ -452,13 +452,33 @@ performance payoff.**
 - [ ] 1.4 Fuzzy include-keyword shortlist + fuzzy exclude-keyword hard skip (no AI cost either way)
 - [ ] 1.5 Claude screening call for the remainder — batched, structured `{confidence, reason}`,
       prompt explicitly instructs typo/variant tolerance
-- [ ] 1.6 Confidence-band logic: auto-add threshold / middle-band human review / reject floor
-      (no bare yes/no cutoff — this is what produced last time's false negatives)
-- [ ] 1.7 Daily scan match limits (per day of week) + daily send caps, independent counters,
-      reset at local midnight
-- [ ] 1.8 Side panel review queue — see candidate, AI reason, Approve / Skip
-- [ ] 1.9 Execution: send the friend request (assisted click — you click, extension queues/paces)
-- [ ] 1.10 Timing: randomized min/max delay, spread queue over N hours, abort on checkpoint
+*(Note: this checklist's original 1.6–1.13 numbering had gone stale — several items were built
+and documented in detail earlier in this file under their own headings without this list being
+updated to match, leaving duplicate/conflicting entries. Reconciled below, 2026-08-31.)*
+
+- [x] 1.6 Confidence-band logic — see the dedicated section above (`lib/verdict.js`,
+      auto-approve/review/auto-deny sliders, both boundary-inclusive, verified against all cases).
+- [x] 1.7 Daily scan limits (per day of week, `scanLimitsByDay`) — built into `runDiscoveryBatch`.
+      Daily *send* caps are covered under 1.9 below, not a separate item — they're the same
+      `caps.maxRequestsPerDay` setting, counted via the ledger's `requestedAt` timestamps rather
+      than an independent counter (see ARCHITECTURE.md's "Scan volume vs. send volume" section).
+- [x] 1.8 Side panel review queue — see the dedicated section above (`sidepanel/review.html`).
+- [x] 1.9 Execution: send the friend request — **Send Queue** built
+      (`sidepanel/send.html`/`send.js`), assisted click as decided (D6): every request needs an
+      explicit click there, the extension never sends unattended. `MKT.act.sendFriendRequest`
+      replaces an earlier, never-wired `clickAddFriend` that had the same page-wide-button-grab bug
+      already found and fixed for Remove — caught and fixed before it ever shipped. Daily count
+      derived from `countRequestedToday` (ledger `requestedAt` timestamps), verified in a live
+      browser JS engine against explicit dates spanning a day boundary. When a queued person is no
+      longer rendered in the (virtualized) suggestions list, the page shows the real reason and a
+      direct profile link instead of a dead end. Both the card renderer and the failure-message
+      path were verified injection-safe the same way as the review queue (`textContent`/`.append()`
+      only, real injection payloads tested and confirmed inert).
+- [x] 1.10 Timing — **assisted-click sending doesn't need simulated inter-action delays**: a human
+      clicking one send at a time from the Send Queue already paces at human speed, so the
+      randomized-delay pattern used in the automated discovery batch doesn't apply here. The daily
+      cap is the real safety control for this surface. Documented as a deliberate scope decision,
+      not an oversight — revisit only if `autoSend` (unattended sending) is ever built.
 - [ ] 1.11 Golden-set eval: ~20 hand-labeled profiles **including known misspelling/variant cases**
       from the confirmed prior bug, re-run after any prompt change
 - [ ] 1.12 End-to-end dry run in Test Mode, then one real low-volume day

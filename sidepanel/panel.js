@@ -6,6 +6,7 @@ const statusEl = document.getElementById('status');
 const pingBtn = document.getElementById('pingBtn');
 const pingResult = document.getElementById('pingResult');
 const reviewQueueLink = document.getElementById('reviewQueueLink');
+const sendQueueLink = document.getElementById('sendQueueLink');
 
 async function init() {
   try {
@@ -19,6 +20,9 @@ async function init() {
   const people = await getAllPeople();
   const pendingCount = people.filter((p) => p.state === 'needs_review').length;
   reviewQueueLink.textContent = pendingCount ? `Review Queue (${pendingCount} waiting)` : 'Review Queue';
+
+  const queuedCount = people.filter((p) => p.state === 'queued').length;
+  sendQueueLink.textContent = queuedCount ? `Send Queue (${queuedCount} queued)` : 'Send Queue';
 }
 
 pingBtn.addEventListener('click', async () => {

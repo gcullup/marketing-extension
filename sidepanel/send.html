@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Send Queue — TNG Marketing Extension</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 16px;
+        max-width: 640px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      #summary {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 6px;
+      }
+      #limitBanner {
+        font-size: 13px;
+        color: #8a5300;
+        background: #fff6e5;
+        border: 1px solid #f0d999;
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 12px;
+        display: none;
+      }
+      #empty {
+        font-size: 14px;
+        color: #666;
+        padding: 24px;
+        text-align: center;
+        background: #f7f8fa;
+        border-radius: 8px;
+        display: none;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        background: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .card a {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1a1a1a;
+        text-decoration: none;
+      }
+      .card a:hover {
+        text-decoration: underline;
+      }
+      .card-meta {
+        font-size: 11px;
+        color: #888;
+      }
+      .card-status {
+        font-size: 12px;
+        color: #666;
+        font-style: italic;
+        margin-top: 4px;
+      }
+      button {
+        padding: 6px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 4px;
+        border: 1px solid #1a7a1a;
+        background: #1a7a1a;
+        color: white;
+        white-space: nowrap;
+      }
+      button:disabled {
+        background: #ccc;
+        border-color: #ccc;
+        cursor: not-allowed;
+      }
+      #refreshBtn {
+        margin-bottom: 16px;
+        background: #fff;
+        color: #333;
+        border-color: #ccc;
+      }
+      .fallback-link {
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Send Queue</h1>
+    <div id="summary">Loading…</div>
+    <div id="limitBanner"></div>
+    <button id="refreshBtn">Refresh</button>
+    <div id="empty">Nobody in the send queue right now.</div>
+    <div id="cards"></div>
+    <script type="module" src="send.js"></script>
+  </body>
+</html>

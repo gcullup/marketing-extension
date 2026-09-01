@@ -15,12 +15,22 @@
     return { clicked: true };
   };
 
-  MKT.act.clickAddFriend = function (testMode) {
-    const btn = document.querySelector(MKT.selectors.addFriendButton);
-    if (!btn) return { clicked: false, reason: 'add friend button not found' };
-    if (testMode) return { clicked: false, reason: 'test mode — no real click performed' };
-    btn.click();
-    return { clicked: true };
+  // Sends a friend request to a SPECIFIC candidate in the list — replaces an
+  // earlier clickAddFriend that just grabbed the first Add Friend button
+  // anywhere on the page (the same scoping bug already found and fixed for
+  // Remove, caught here before it ever shipped since this one was never
+  // wired to anything). Verified against a synthetic two-person page that
+  // this can't cross-wire and click the wrong person's button.
+  MKT.act.sendFriendRequest = function (href, testMode) {
+    const link = [...document.querySelectorAll(MKT.selectors.candidateProfileLink)].find(
+      (a) => a.href === href
+    );
+    if (!link) return { sent: false, reason: 'candidate not found in list' };
+    const found = MKT._findAncestorContaining(link, MKT.selectors.addFriendButton);
+    if (!found) return { sent: false, reason: 'add friend button not found' };
+    if (testMode) return { sent: false, reason: 'test mode — no real click performed' };
+    found.match.click();
+    return { sent: true };
   };
 
   // Dismisses a rejected candidate from the suggestions list via Facebook's

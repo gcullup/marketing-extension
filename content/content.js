@@ -225,6 +225,10 @@
       sendResponse(MKT.act.removeCandidate(message.href, message.testMode));
       return true;
     }
+    if (message?.type === 'SEND_FRIEND_REQUEST') {
+      sendResponse(MKT.act.sendFriendRequest(message.href, message.testMode));
+      return true;
+    }
     return false;
   });
 })();
