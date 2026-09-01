@@ -700,10 +700,20 @@ today's person count, and a Stop button that appears once running and halts the 
 current in-flight send finishes (an in-progress send is never aborted mid-click). The skip-past-a-
 failure logic and the 8-18s randomization bounds were each verified in a browser JS sandbox before
 being wired into the real code, followed by a full read-through of the assembled feature.
-**Not yet tested end-to-end against the live Send Queue page — recommend Greg first tries this with
-Test Mode ON**, since `sendThisOne()` already respects `testMode` via the same `SEND_FRIEND_REQUEST`
-path the manual button always used, so the full loop/pacing/stop behavior can be exercised safely
-with zero real Facebook actions before flipping Test Mode off.
+**Real bug found on the very first live run (2026-09-01):** Greg ran Process All with no
+`facebook.com/friends/suggestions` tab open — it attempted all 4 queued people (Dave Snider, Tom
+Causley, Travis Goodwin, Tracy Doise Hanks) and every single one failed with "No
+facebook.com/friends/suggestions tab open — open one, then try again," since `sendThisOne` only
+ever fell back to the profile-page send path when a suggestions tab existed but the candidate
+specifically wasn't rendered in its list — "no tab open at all" was a different code branch that
+just showed a clickable link and gave up. That's a reasonable dead end for one manual click (Greg
+sees it, opens a tab, tries again) but it meant Process All couldn't recover mid-run and burned its
+entire attempt budget on the same failure. **Fixed:** both "no suggestions tab open" and "tab open
+but not in the list" now trigger the same, already-verified `sendViaProfilePage` fallback
+automatically — since that fallback opens the person's own profile directly, it never actually
+needed a suggestions tab to work at all. This also fixes the manual per-card Send button, not just
+Process All. **Pending: Greg re-runs Process All (with or without a suggestions tab open) and
+confirms sends now succeed via the profile-page path instead of dead-ending.**
 
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
