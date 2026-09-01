@@ -281,15 +281,40 @@ Message and send it.
   `staleRequestDays` even though both are day-count thresholds: one gates cancelling an unaccepted
   request, this one gates messaging an accepted one.
 - **New side panel page, `sidepanel/dm.html`/`dm.js`** ("DM Queue") — lists the cohort, each card
-  showing the person, days since acceptance, and the exact rendered message they'd receive. Currently
-  **read-only** (a manual "open their profile to message them" link, no automated send yet) — the
-  actual click-Message/type/send action needs the Messenger composer's real DOM verified live first,
-  same discipline as every other Facebook interaction built this session. `profileMessageButton`
-  (`[aria-label="Message"][role="button"]`) was already captured and verified during Step 9's
-  foundation work (from the same Aaron Bihl page as the Friends-button acceptance signal), so opening
-  the composer is likely a short step once the actual composer input/send mechanism is confirmed —
-  the equivalent of `clickProfileAddFriend`. **Not yet built:** the actual composer automation
-  (`ARCHITECTURE.md` already flags this as the system's highest-fragility surface).
+  showing the person, days since acceptance, the exact rendered message they'd receive, and a "Send
+  Message" button. Assisted click, matching D6's original reasoning (messaging is the more heavily
+  policed surface) — no "Process All" equivalent built for this page.
+- **Messenger composer automation, verified DOM (2026-09-01), from Aaron Bihl's real chat popup:**
+  clicking Message opens an **in-page popup** (confirmed not a new tab, not an iframe). The composer
+  is a Lexical rich-text editor (`div[contenteditable="true"][role="textbox"][aria-label^="Write to
+  "]`), not a plain input — verified this doesn't cross-match the separate on-profile post composer
+  (a different real element, whose label starts "Write something to..."). There is **no visible Send
+  button in this UI** — confirmed live that pressing Enter is the only way to send.
+  - `MKT.act.clickProfileMessage()` (content/act.js) — opens the popup. Not gated by Test Mode, same
+    reasoning as clicking into a candidate's profile: opening a UI isn't the policed action.
+  - `MKT.act.sendComposedMessage(text, testMode)` — uses `document.execCommand('insertText', ...)`
+    rather than a raw DOM mutation, since Lexical (like most rich-text editors) keeps its own internal
+    state synced off real browser input events; a raw mutation wouldn't update that state and Enter
+    would likely send nothing or something stale. Verified the *mechanics* (insertText populating a
+    generic contenteditable, a dispatched Enter KeyboardEvent being observed by a keydown listener) in
+    a live browser JS sandbox — **not yet verified against Facebook's actual Lexical instance**, which
+    is the one genuinely unverified piece and exactly the "highest-fragility surface" this doc already
+    flagged. Test Mode here deliberately stops one step short of every other action's Test Mode: it
+    still types the real rendered text (safe — nothing sends), just skips the Enter dispatch, so the
+    hard-to-predict half can be checked with zero risk of an accidental real send before ever trying
+    the full send live.
+  - `SEND_DM` content-script message (content/content.js) — clicks Message, polls for the composer to
+    actually render (`waitForComposer`, same reasoning as `waitForProfileUrl`), then calls
+    `sendComposedMessage`. `sidepanel/dm.js`'s `sendGreetingDm` mirrors `send.js`'s
+    `sendViaProfilePage` exactly (open the person's profile in a background tab, wait for load+settle,
+    message the tab, clean up) — same shape of on-demand per-person action, so it follows the same
+    pattern rather than introducing a new one.
+  - `markDmSent(id, message)` / `countDmSentToday()` (lib/ledger.js) — records the actual message
+    text sent (auditable later) and feeds a daily-limit banner reading `caps.maxMessagesPerDay`
+    (already existed as a setting from Phase 0, unused until now).
+  **Pending: Greg tests with Test Mode ON first** (confirms the text actually types into the real
+  popup) **then OFF for one real send** (confirms Enter actually sends it) before this is considered
+  proven, not just built.
 
 ---
 

@@ -69,6 +69,19 @@
     // settings.staleRequestDays gets cancelled during the acceptance check.
     profileCancelRequestButton: '[aria-label^="Cancel Request "][role="button"]:not([aria-hidden="true"])',
 
+    // Confirmed live (2026-09-01), from Aaron Bihl's real profile: clicking
+    // Message opens an in-page chat popup (not a new tab, not an iframe —
+    // confirmed directly in the page's own DOM). The input is a Lexical rich
+    // -text editor, not a plain <input>/<textarea> — `aria-label^="Write to "`
+    // is the dynamic-name-suffix anchor (same pattern as Add Friend/Cancel
+    // Request). Verified against a synthetic page that it does NOT
+    // cross-match the on-profile post composer (a different real element,
+    // whose aria-label starts "Write something to ...", not "Write to ..."),
+    // and correctly matches only real chat-composer elements if more than
+    // one happened to be present. No separate Send button exists in this
+    // popup — confirmed live: pressing Enter is the only way to send.
+    messageComposerInput: 'div[contenteditable="true"][role="textbox"][aria-label^="Write to "]',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

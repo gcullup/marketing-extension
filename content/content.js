@@ -65,6 +65,24 @@
     });
   }
 
+  // Polls for the chat popup's composer to actually be in the DOM after
+  // clicking Message, rather than a fixed guess — the popup's open animation
+  // takes a moment, same reasoning as waitForProfileUrl above.
+  function waitForComposer(timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now();
+      const poll = setInterval(() => {
+        if (document.querySelector(MKT.selectors.messageComposerInput)) {
+          clearInterval(poll);
+          resolve();
+        } else if (Date.now() - startedAt > timeoutMs) {
+          clearInterval(poll);
+          reject(new Error('timed out waiting for the message composer to open'));
+        }
+      }, 250);
+    });
+  }
+
   /**
    * The full read path for ONE candidate: check the ledger first (skip
    * entirely if already known), click, wait for navigation, scroll the
@@ -246,6 +264,27 @@
       // Same assumption — caller has already navigated to the target
       // person's profile page.
       sendResponse(MKT.act.cancelFriendRequest(message.testMode));
+      return true;
+    }
+    if (message?.type === 'SEND_DM') {
+      // Same assumption as CLICK_PROFILE_ADD_FRIEND — caller has already
+      // navigated to the target person's own profile page. Clicking Message
+      // isn't gated by Test Mode (opening the popup isn't the policed
+      // action); the actual send inside sendComposedMessage is.
+      (async () => {
+        const openResult = MKT.act.clickProfileMessage();
+        if (!openResult.opened) {
+          sendResponse({ sent: false, reason: openResult.reason });
+          return;
+        }
+        try {
+          await waitForComposer();
+        } catch (err) {
+          sendResponse({ sent: false, reason: err.message });
+          return;
+        }
+        sendResponse(MKT.act.sendComposedMessage(message.text, message.testMode));
+      })();
       return true;
     }
     return false;

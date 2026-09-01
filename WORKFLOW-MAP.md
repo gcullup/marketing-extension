@@ -733,9 +733,26 @@ they're crossed off as no-longer-applicable rather than left open.
 - [-] 2.3 AI-drafted opener — not needed per the simplified design above.
 - [-] 2.4 Draft review queue — not needed; nothing is drafted, so there's nothing to review before
       sending beyond seeing the (fixed) rendered preview, which the new DM Queue page already shows.
-- [ ] 2.5 Messenger composer automation (highest-fragility surface in the system) — **next up**.
-      `profileMessageButton` was already captured/verified during 2.0's foundation work; what's
-      still needed is the composer input + send mechanism, not yet verified against the live DOM.
+- [~] 2.5 Messenger composer automation (highest-fragility surface in the system) — **built,
+      pending live verification.** Greg tested clicking Message on Aaron Bihl's real accepted-friend
+      profile: it opens an **in-page popup** (not a new tab, not an iframe), and the composer is a
+      Lexical rich-text editor, not a plain input — real markup captured:
+      `<div aria-label="Write to Aaron Bihl" contenteditable="true" role="textbox" data-lexical-editor="true">...`.
+      Confirmed no separate Send button exists — pressing Enter is the only way to send. Built:
+      `messageComposerInput` selector (verified against a synthetic page that it doesn't cross-match
+      the on-profile post composer, whose label starts "Write something to..." not "Write to...");
+      `MKT.act.clickProfileMessage()` (opens the popup, not Test-Mode-gated — same reasoning as
+      clicking into a candidate's profile); `MKT.act.sendComposedMessage(text, testMode)`, which uses
+      `document.execCommand('insertText', ...)` rather than a raw DOM mutation since Lexical
+      maintains its own state synced off real input events; `SEND_DM` content message (clicks
+      Message, polls for the popup to actually render, then sends); `sidepanel/dm.js`'s
+      `sendGreetingDm`, mirroring `send.js`'s `sendViaProfilePage` exactly. Verified the *mechanics*
+      (insertText populating a generic contenteditable; a dispatched Enter KeyboardEvent being
+      observed) in a live browser JS sandbox — **not yet verified against Facebook's actual Lexical
+      instance**, which is the one real unknown. Test Mode deliberately stops one step short of every
+      other action here: it types the real rendered text (safe) but skips the Enter dispatch, so the
+      hard part (does insertText work against the real editor) can be checked with zero risk of an
+      accidental send. **Pending: Greg tests with Test Mode ON first, then OFF for one real send.**
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send
@@ -744,17 +761,15 @@ they're crossed off as no-longer-applicable rather than left open.
       DM is sent, per the simplified design above.
 - [ ] 2.8 **ENDPOINT 2 SIGNED OFF**
 
-**Built today (2026-09-01), read-only so far:** new side panel page `sidepanel/dm.html`/`dm.js` ("DM
-Queue," linked from the main panel's Step 9 section, with a live eligible-count like Review/Send
-Queue) — lists the cohort from `getDmCandidates`, each card showing the person, days since
-acceptance, and the exact rendered message they'd receive (`lib/template.js`'s `renderTemplate`,
-verified against full names, a single-word name, a missing name, and a template using `{firstName}`
-twice). No automated send yet — each card links to the person's profile so Greg can message them
-manually in the meantime. **Pending: verify the Messenger composer's real DOM** (click Message on a
-live accepted friend's profile, inspect the resulting input box and however sending actually works —
-Enter key vs. a Send button) before the actual send action can be built — this is the one remaining
-piece of Step 9, and the system's flagged highest-fragility surface, so it gets the same
-never-guess-a-selector treatment as everything else this session.
+**Built today (2026-09-01):** new side panel page `sidepanel/dm.html`/`dm.js` ("DM Queue," linked from
+the main panel's Step 9 section, with a live eligible-count like Review/Send Queue) — lists the
+cohort from `getDmCandidates`, each card showing the person, days since acceptance, the exact
+rendered message they'd receive (`lib/template.js`'s `renderTemplate`, verified against full names, a
+single-word name, a missing name, and a template using `{firstName}` twice), a daily-limit banner
+(`caps.maxMessagesPerDay`, via new `countDmSentToday`), and — now that the composer DOM is captured —
+a real "Send Message" button (assisted click, per D6's original reasoning: messaging is the more
+heavily policed surface). See 2.5 below for the composer automation itself and what's still pending
+live verification.
 
 ---
 

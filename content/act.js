@@ -77,4 +77,47 @@
     btn.click();
     return { cancelled: true };
   };
+
+  // Opens the chat popup for Step 9's greeting DM — not gated by Test Mode,
+  // same reasoning as clicking into a candidate's profile: opening the UI
+  // isn't the policed action, sending a message is. Same assumption as
+  // clickProfileAddFriend: caller has already navigated to the person's
+  // profile page.
+  MKT.act.clickProfileMessage = function () {
+    const btn = document.querySelector(MKT.selectors.profileMessageButton);
+    if (!btn) return { opened: false, reason: 'message button not found' };
+    btn.click();
+    return { opened: true };
+  };
+
+  // Types the greeting DM into the (Lexical-based, contenteditable) chat
+  // composer and sends it. Confirmed live (2026-09-01), from Aaron Bihl's
+  // real chat popup: there is no separate Send button in this UI — pressing
+  // Enter is the only way to send, so that's simulated here rather than
+  // clicked. `execCommand('insertText', ...)` is used instead of directly
+  // setting textContent because Lexical (like most rich-text editors)
+  // maintains its own internal state synced off real browser input events —
+  // a raw DOM mutation wouldn't update that state and Enter would likely
+  // send nothing or something stale. This is the one action this session
+  // hasn't yet verified end-to-end against the real page (see
+  // ARCHITECTURE.md's "highest-fragility surface" note) — Test Mode
+  // deliberately stops one step short of every other action's Test Mode: it
+  // still types the real text (safe — nothing is sent), just skips the
+  // Enter dispatch, so the hardest-to-predict half (does insertText actually
+  // work against Facebook's real editor) can be verified with zero risk of
+  // an accidental real send.
+  MKT.act.sendComposedMessage = function (text, testMode) {
+    const composer = document.querySelector(MKT.selectors.messageComposerInput);
+    if (!composer) return { sent: false, reason: 'message composer not found' };
+    composer.focus();
+    const inserted = document.execCommand('insertText', false, text);
+    if (!inserted) return { sent: false, reason: 'insertText command failed' };
+    if (testMode) {
+      return { sent: false, reason: 'test mode — typed but not sent (check the popup, then send or clear it yourself)' };
+    }
+    const enterOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+    composer.dispatchEvent(new KeyboardEvent('keydown', enterOpts));
+    composer.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
+    return { sent: true };
+  };
 })();
