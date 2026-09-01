@@ -86,6 +86,14 @@ deliberately uses plain browser-native ES modules with no build step or bundler,
 requires it. `lib/fuzzy.js` was verified by running its real source in a live browser JS engine
 instead. Flagging only so it doesn't surprise anyone reaching for `npm` later.
 
+**Testing gotcha, confirmed 2026-09-01: after reloading the extension, use a hard refresh (Ctrl+F5),
+not a plain F5, on any already-open Facebook tab.** Reloading the extension orphans any content
+script already injected into a tab that was open before the reload — a plain F5 on that tab wasn't
+enough to fix it (still threw "Could not establish connection. Receiving end does not exist" on Run
+Discovery Batch), but Ctrl+F5 did. Not a code bug — this is the same class of stale-reload issue
+noted earlier in Phase 1 (the `skippedScrape` false alarm), just with a more precise fix now that
+plain F5 alone isn't reliably enough.
+
 ---
 
 ## Phase 1 — ENDPOINT 1: Step 1, Friend Discovery & Queueing
