@@ -640,8 +640,12 @@ path today, provably so, not just by design intent.
       needed for 2.1's cohort filter below). New "Check Accepted Friends" panel button, clearly
       labeled as foundational/new rather than blended into the polished Discover/Review/Send flow.
       See ARCHITECTURE.md's "Step 9 — foundation started" section for full detail.
-      **Pending: Greg clicks "Check Accepted Friends" and confirms Aaron Bihl (already known
-      accepted) gets correctly detected and moved to `accepted` in the ledger.**
+
+**Confirmed live at real scale (2026-09-01):** checked 7 real people in `requested` state (6 more
+than just Aaron Bihl — real accumulated activity from today's Send Queue testing), correctly split
+3 accepted (Aaron Bihl, Alex Barshop, Hunter Hyde) / 4 not yet (Obi Dike, Patrick Falcone, Brian
+Pitcher, Tyler Allen), zero errors or timeouts across the batch. Acceptance detection holds up
+beyond the single-person case, not just the original test.
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
 - [ ] 2.2 Tone guide + message template captured in settings
