@@ -663,10 +663,15 @@ before wiring in — including the exact-14-days edge case (stays within the win
 past it triggers cancellation) and confirming acceptance always takes priority over staleness (a
 very old but just-accepted request never gets wrongly cancelled).
 **Confirmed live (2026-09-01):** all 4 still-pending people correctly report `stillWaiting: true,
-daysWaiting: 0` (all requested earlier today) — nobody wrongly flagged as stale. The actual cancel
-path (triggering when someone genuinely is stale) remains unexercised against real data until
-something's actually been outstanding 14+ days, or `staleRequestDays` is temporarily lowered to
-force it — the decision logic itself was already verified in isolation (see above).
+daysWaiting: 0` (all requested earlier today) — nobody wrongly flagged as stale.
+
+**Full real-world validation, same day:** Greg temporarily set `staleRequestDays` to 0 to force the
+cancel path and re-ran the check. Both branches fired for real in the same pass — Patrick Falcone
+and Brian Pitcher were correctly detected as newly accepted (`accepted: true`), while Obi Dike and
+Tyler Allen were correctly identified as stale under the forced threshold and had their requests
+genuinely cancelled on Facebook (`cancelled: true`). Reset to a real value (10 days) afterward. Both
+of Step 9's foundational branches — acceptance detection and stale-request cleanup — are now proven
+against real data, not just verified in isolation.
 
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
