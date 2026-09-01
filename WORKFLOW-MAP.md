@@ -654,6 +654,13 @@ Screening/View Ledger moved into a `<details>` "Diagnostics" section, collapsed 
 markup reorganization — `panel.js` looks everything up by element ID, not DOM position or
 visibility, so no script changes were needed.
 
+**Panel reordered into the real workflow sequence (2026-09-01), per Greg:** Discover → Review →
+Send, with numbered step labels above each. Review Queue and Send Queue restyled from plain text
+links into button-look-alikes (`.button-link` class) matching Run Discovery Batch's visual weight —
+kept as real `<a>` elements rather than converted to `<button>` + `window.open()`, preserving normal
+link semantics (right-click "open in new tab," keyboard accessibility). `panel.js` needed zero
+changes — both elements are still looked up by the same IDs, just moved and reclassed.
+
 ---
 
 ## Session Log
