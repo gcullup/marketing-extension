@@ -211,6 +211,12 @@ async function runDiscoveryBatch(tabId) {
     // batch and abandoning everyone after it — even though every candidate
     // before it had already been safely recorded. One bad candidate should
     // never take the rest of the batch down with it.
+    //
+    // didInteractWithFacebook (2026-09-01) gates the inter-candidate pause
+    // below: pacing only makes sense after real DOM interaction (a click,
+    // scroll, extraction) happened, not after an instant cache-skip where
+    // nothing visible occurred.
+    let didInteractWithFacebook = false;
     try {
       const scrapeResult = await sendToTab(tabId, {
         type: 'SCRAPE_CANDIDATE',
@@ -229,6 +235,7 @@ async function runDiscoveryBatch(tabId) {
         continue;
       }
 
+      didInteractWithFacebook = true;
       const screenResult = await screenAndRecord({
         text: scrapeResult.text,
         links: scrapeResult.links,
@@ -264,6 +271,9 @@ async function runDiscoveryBatch(tabId) {
       });
       newlyScreened++;
     } catch (err) {
+      // Conservative: an error partway through likely means some real
+      // interaction already happened before it failed, so still pace here.
+      didInteractWithFacebook = true;
       await log('error', 'Candidate screening failed — continuing batch', {
         name: candidate.name,
         error: err.message,
@@ -277,6 +287,12 @@ async function runDiscoveryBatch(tabId) {
       // of the try block, including `continue`, so this doesn't need to be
       // duplicated at each exit point.
       broadcastProgress({ candidatesTried, newlyScreened, dailyLimit, lastName: candidate.name });
+
+      if (didInteractWithFacebook) {
+        const { minDelaySeconds, maxDelaySeconds } = settings.timing;
+        const delayMs = (minDelaySeconds + Math.random() * (maxDelaySeconds - minDelaySeconds)) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 

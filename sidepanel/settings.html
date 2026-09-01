@@ -186,18 +186,19 @@
     <textarea id="birthdayTemplate"></textarea>
 
     <h2>Timing</h2>
+    <p class="hint">Pause between finishing one candidate and starting the next during a Discovery Batch run — only applied after real Facebook interaction, not after an instant already-known skip.</p>
     <div class="three-col">
       <div>
-        <label for="minDelaySeconds">Min delay between actions (sec)</label>
+        <label for="minDelaySeconds">Min delay between candidates (sec)</label>
         <input type="number" id="minDelaySeconds" min="0" />
       </div>
       <div>
-        <label for="maxDelaySeconds">Max delay between actions (sec)</label>
+        <label for="maxDelaySeconds">Max delay between candidates (sec)</label>
         <input type="number" id="maxDelaySeconds" min="0" />
       </div>
       <div>
         <label for="spreadHours">Spread queue over (hours)</label>
-        <input type="number" id="spreadHours" min="1" />
+        <input type="number" id="spreadHours" min="1" disabled title="Not used yet — only meaningful for unattended auto-send, which isn't built." />
       </div>
     </div>
 

@@ -547,6 +547,23 @@ already-working scroll-tick delay instead of leaving them dead, and relabel them
 chose to defer this decision to next session rather than pick under time pressure — noted here so
 it isn't reconstructed from memory later.
 
+**Resolved (2026-09-01):** went with option 1 (between candidates within a batch) at a modest
+scale, deliberately avoiding the `chrome.alarms` rewrite for now. Reasoning: even option 1's
+"proper" multi-minute version wasn't chosen — instead, `minDelaySeconds`/`maxDelaySeconds` were
+redefined to mean a **few-second** pause between candidates (new default 3–15s, not the inherited
+250–1800s), which is short enough to stay a simple in-process `await` without meaningfully raising
+the MV3 service-worker kill risk, while still closing the real gap that existed today (zero pause
+between consecutive candidates). Applied only after real Facebook interaction (a fresh scrape),
+never after an instant cache-skip, via a `didInteractWithFacebook` flag — verified this reasoning
+holds by tracing every branch of the batch loop. `spreadHours` stays explicitly unused and its
+Settings input is now disabled with an explanatory tooltip, rather than sitting there implying it
+does something. Old inert values (250s/1799s if previously configured) reset once via a guarded
+migration — verified live it only fires once and never re-clobbers a later deliberate edit.
+**The `chrome.alarms` architecture for true multi-minute/hour-spread pacing remains a real,
+legitimate future task** — revisit if scan volumes grow large enough that a batch's own natural
+duration (not even counting added pacing) starts pushing into the MV3 kill-risk window, or if
+Greg wants session-level pacing beyond what a few-second inter-candidate gap provides.
+
 **Reset Queue built (2026-08-31), per Greg:** after a day of heavy testing, Review Queue (18
 waiting) and Send Queue (9 queued) had accumulated a lot of test-run artifacts with no way to clear
 them. Added `clearByState(state)` to `lib/ledger.js` — deletes matching records from the ledger
