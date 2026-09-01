@@ -406,6 +406,19 @@ first.
   Approve. Loads any existing draft for today on open, so reopening the page after generating
   doesn't lose work.
 
+**Facebook-safe formatting, found and fixed on the first real test (2026-09-01):** the first
+generated drafts came back plain — no emoji, no visual emphasis — since Facebook's post composer
+doesn't render real HTML/markdown formatting on paste; asking Claude to bold with markdown alone
+wouldn't survive a copy/paste into a real post. **`lib/facebookFormat.js`** converts `**bold**`
+markdown into actual Unicode "Mathematical Bold" lookalike characters — the same technique used
+across social media for exactly this reason, since these are real codepoints, not markup, so a
+normal copy/paste carries them through perfectly. Applied automatically inside `lib/content.js`'s
+`callClaude`, so the draft textarea always holds final, paste-ready text. The prompt now also asks
+for a handful of emphasized phrases (not every sentence) and natural emoji use. A related gap: the
+bold Unicode characters are outside the Basic Multilingual Plane (surrogate pairs in a JS string),
+so plain `.length` silently counted each bold letter as 2 — `facebookFormat.js`'s `displayLength()`
+counts by Unicode code point instead, and `sidepanel/content.js`'s character count now uses it.
+
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
 verification for each destination, same discipline as every other Facebook interaction in this

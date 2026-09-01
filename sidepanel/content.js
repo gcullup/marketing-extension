@@ -2,6 +2,7 @@ import { getContentPlanForDate, generateContent } from '../lib/content.js';
 import { getContentForDate, saveDraft, approveContent, CONTENT_STATES } from '../lib/contentLedger.js';
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
+import { displayLength } from '../lib/facebookFormat.js';
 
 const dayInfoEl = document.getElementById('dayInfo');
 const mediaNoteEl = document.getElementById('mediaNote');
@@ -24,7 +25,13 @@ const MEDIA_NOTES = {
 };
 
 function updateCharCount() {
-  const len = draftTextEl.value.length;
+  // Real gap found live (2026-09-01): once bold-Unicode formatting was
+  // added, plain `.value.length` counts each bold character as 2 (they're
+  // surrogate pairs, outside the Basic Multilingual Plane) -- roughly
+  // doubling the apparent count for text with much bold in it. Counting by
+  // code point instead matches how a person (and hopefully Facebook) would
+  // actually count characters.
+  const len = displayLength(draftTextEl.value);
   if (currentPlan?.maxChars) {
     charCountEl.textContent = `${len} / ${currentPlan.maxChars} characters`;
     charCountEl.classList.toggle('over', len > currentPlan.maxChars);

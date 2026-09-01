@@ -884,8 +884,27 @@ philosophy) — a public post is far more visible/permanent than a DM.
       mapping and date-key formatting in a live browser JS sandbox before wiring in.
       **Explicitly a first pass, not final** — the actual prompt wording is a placeholder Greg wants
       to engineer properly later; today's goal was just proving the day-aware pipeline end to end.
-      **Pending: Greg tests Generate against a real Claude API call and reports what the drafts
-      actually look like.**
+
+      **Real gap found on the first real test, per Greg:** the generated draft came back as plain,
+      unstyled text — no emoji, no visual emphasis — which reads flat once actually posted. Root
+      cause: Facebook's post composer doesn't render real HTML/markdown formatting on paste, so even
+      asking Claude to bold text with markdown wouldn't survive a copy/paste into a real post.
+      **Fixed:** added `lib/facebookFormat.js` — converts `**bold**` markdown into actual Unicode
+      "Mathematical Bold" lookalike characters (the same trick used across social media for exactly
+      this reason: it's real Unicode codepoints, not markup, so a normal copy/paste carries it
+      through perfectly). Applied automatically in `lib/content.js`'s `callClaude`, so the draft
+      textarea always holds the final, paste-ready text — no separate "convert" step for Greg to
+      remember. Also updated the prompt to ask for a few emphasized phrases (not every sentence) and
+      natural emoji use. Verified the conversion in a live browser JS sandbox (produces real bold
+      glyphs, strips the asterisks cleanly) before wiring in.
+      **Second, related gap found and fixed the same pass:** the bold Unicode characters are outside
+      the Basic Multilingual Plane (surrogate pairs in a JS string), so the character-count display
+      was silently counting each bold letter as 2 instead of 1 once a draft had much bold text —
+      inflating the short-form 400-char guidance for no real reason. `lib/facebookFormat.js`'s new
+      `displayLength()` counts by Unicode code point instead of raw `.length`, matching how a person
+      would actually count characters; `sidepanel/content.js` now uses it.
+      **Pending: Greg re-tests Generate and confirms the bold/emoji formatting actually survives a
+      real copy/paste into Facebook.**
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story
