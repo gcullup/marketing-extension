@@ -9,6 +9,7 @@ const mediaNoteEl = document.getElementById('mediaNote');
 const noPlanEl = document.getElementById('noPlan');
 const editorEl = document.getElementById('editor');
 const draftTextEl = document.getElementById('draftText');
+const modifierInputEl = document.getElementById('modifierInput');
 const charCountEl = document.getElementById('charCount');
 const generateBtn = document.getElementById('generateBtn');
 const approveBtn = document.getElementById('approveBtn');
@@ -73,6 +74,7 @@ async function init() {
   const existing = await getContentForDate(today);
   if (existing) {
     draftTextEl.value = existing.text;
+    modifierInputEl.value = existing.modifier ?? '';
     renderBadge(existing.state);
   }
   updateCharCount();
@@ -85,11 +87,13 @@ generateBtn.addEventListener('click', async () => {
   statusEl.textContent = 'Drafting with Claude…';
   try {
     const settings = await getSettings();
+    const modifier = modifierInputEl.value;
     const result = await generateContent({
       apiKey: settings.claude.apiKey,
       model: settings.claude.model,
       targetPersona: settings.targetPersona,
       date: today,
+      modifier,
     });
     draftTextEl.value = result.content;
     updateCharCount();
@@ -98,10 +102,11 @@ generateBtn.addEventListener('click', async () => {
       dayKey: currentDayKey,
       contentType: currentPlan.type,
       text: result.content,
+      modifier,
     });
     renderBadge(record.state);
     statusEl.textContent = 'Drafted — review and edit as needed, then Approve.';
-    await log('info', 'Content: draft generated', { dayKey: currentDayKey, contentType: currentPlan.type });
+    await log('info', 'Content: draft generated', { dayKey: currentDayKey, contentType: currentPlan.type, modifier });
   } catch (err) {
     statusEl.textContent = `Failed: ${err.message}`;
     await log('error', 'Content: draft generation failed', { error: err.message });

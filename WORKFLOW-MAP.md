@@ -903,8 +903,16 @@ philosophy) — a public post is far more visible/permanent than a DM.
       inflating the short-form 400-char guidance for no real reason. `lib/facebookFormat.js`'s new
       `displayLength()` counts by Unicode code point instead of raw `.length`, matching how a person
       would actually count characters; `sidepanel/content.js` now uses it.
-      **Pending: Greg re-tests Generate and confirms the bold/emoji formatting actually survives a
-      real copy/paste into Facebook.**
+      **Confirmed live (2026-09-01):** bold/emoji formatting survived a real copy/paste into
+      Facebook.
+
+      **Theme/modifier field added (2026-09-01), per Greg:** an optional free-text field (e.g.
+      "Labor Day") that travels with the generation call, letting Greg nudge a specific day's content
+      toward a timely angle without touching the underlying day-type guidance — purely additive, the
+      day's format rules (length, persona-relevance) still apply on top of it. Saved alongside the
+      draft in the content ledger (`saveDraft`'s new `modifier` field) so reopening the page later
+      still shows what theme produced a given draft, and Regenerate defaults to the same theme
+      instead of silently dropping it.
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story

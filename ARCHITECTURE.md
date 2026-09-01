@@ -418,6 +418,14 @@ for a handful of emphasized phrases (not every sentence) and natural emoji use. 
 bold Unicode characters are outside the Basic Multilingual Plane (surrogate pairs in a JS string),
 so plain `.length` silently counted each bold letter as 2 — `facebookFormat.js`'s `displayLength()`
 counts by Unicode code point instead, and `sidepanel/content.js`'s character count now uses it.
+**Confirmed live** — bold/emoji formatting survived a real copy/paste into Facebook.
+
+**Theme/modifier field, per Greg (2026-09-01):** an optional free-text theme (e.g. "Labor Day")
+travels with the generation call, added to the prompt as an extra instruction on top of the day's
+existing guidance rather than replacing it — the day's format rules (short-form length, Friday's
+persona-unrelated requirement, etc.) still apply. Saved alongside the draft in
+`lib/contentLedger.js` (`saveDraft`'s new `modifier` field) so it persists across reloads and
+Regenerate defaults to the same theme.
 
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
