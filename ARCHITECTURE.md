@@ -225,16 +225,28 @@ this before today; `requested` was a dead end. That gap is now closed:
 - **`MKT.scrape.checkFriendStatus`** (`content/scrape.js`) — assumes the caller has already
   navigated to the target person's own profile page; reports only `{isFriend}`, since that's the
   one signal the orchestration actually needs.
-- **`checkProfileFriendStatus` / `checkAcceptances`** (`background/service-worker.js`) — walks
-  everyone in `requested` state, opens each one's real profile in a background tab (mirroring
-  `send.js`'s `sendViaProfilePage` pattern exactly), checks status, cleans up the tab either way.
-  Deliberately a separate on-demand step, not folded into the discovery batch — opening a
-  background tab per person is meaningfully different work than screening a suggestions list.
+- **`withProfileTab` / `checkAcceptances`** (`background/service-worker.js`) — walks everyone in
+  `requested` state, opens each one's real profile in a background tab (mirroring `send.js`'s
+  `sendViaProfilePage` pattern), checks status, cleans up the tab either way. Deliberately a
+  separate on-demand step, not folded into the discovery batch — opening a background tab per
+  person is meaningfully different work than screening a suggestions list. `withProfileTab` is a
+  reusable "open a tab, let a callback send as many messages as it needs, always clean up" helper
+  (generalized from an earlier single-purpose version — see stale-request cleanup below).
 - **`markAccepted`** (`lib/ledger.js`) — `requested` → `accepted`, with `acceptedAt` set for the
   eventual "accepted more than N days ago" cohort filter from the original Step 9 spec.
 - Side panel gained a **"Check Accepted Friends"** button, clearly labeled as new/foundational
   rather than blended into the polished Discover/Review/Send flow — doesn't need an active
   facebook.com tab the way scanning does, since it opens its own background tabs per person.
+- **Stale-request cleanup, per Greg** — the time-based counterpart to the original Step 2 spec
+  ("cancel outstanding requests"), which was volume-based (200/150) there. `settings
+  .staleRequestDays` (default 14) controls it. Signal verified live against Obi Dike's real
+  still-pending profile: `[aria-label^="Cancel Request "][role="button"]` — same dynamic-name-
+  suffix pattern as Add Friend/Remove, confirmed mutually exclusive with the Friends/Add-Friend
+  selectors. `MKT.act.cancelFriendRequest` (content) and `markCancelled` (ledger, `requested` →
+  `cancelled`) check acceptance AND, if not accepted and stale, cancel — **in the same profile
+  visit**, not two separate passes. The decision logic (accepted takes priority over staleness; the
+  exact-14-days boundary stays within the window, only strictly past it cancels) was verified in a
+  live browser JS engine before wiring in.
 
 **Not yet built:** the actual DM cohort query (accepted AND never DM'd AND accepted ≥ N days ago),
 AI-drafted personalized openers (the original design intent — referencing something real from the

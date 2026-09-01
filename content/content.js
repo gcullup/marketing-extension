@@ -242,6 +242,12 @@
       sendResponse(MKT.scrape.checkFriendStatus());
       return true;
     }
+    if (message?.type === 'CANCEL_FRIEND_REQUEST') {
+      // Same assumption — caller has already navigated to the target
+      // person's profile page.
+      sendResponse(MKT.act.cancelFriendRequest(message.testMode));
+      return true;
+    }
     return false;
   });
 })();

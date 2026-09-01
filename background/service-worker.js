@@ -15,6 +15,7 @@ import {
   markRemovalAttempt,
   listByState,
   markAccepted,
+  markCancelled,
 } from '../lib/ledger.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -341,15 +342,16 @@ async function runDiscoveryBatch(tabId) {
   return { newlyScreened, results, stoppedReason, todayKey, dailyLimit };
 }
 
-// Step 9's foundational check, one person at a time: opens their real
-// profile in a background tab, waits for it to load, checks for the
-// Friends button (see content/scrape.js's checkFriendStatus), then cleans
-// up the tab either way. Mirrors send.js's sendViaProfilePage pattern
-// exactly — same reasoning applies: a background tab won't disrupt
-// whatever the user is doing in their active tab, and "complete" firing on
-// network load needs a little extra time before the SPA content itself has
+// Opens a person's real profile in a background tab, waits for it to load,
+// lets `callback` send as many messages to that tab as it needs, then
+// cleans up the tab either way. Mirrors send.js's sendViaProfilePage
+// pattern, generalized (2026-09-01) so one profile visit can both check
+// acceptance AND, if warranted, act on it (cancel a stale request) without
+// opening the same profile twice. A background tab won't disrupt whatever
+// the user is doing in their active tab, and "complete" firing on network
+// load needs a little extra time before the SPA content itself has
 // actually rendered.
-function checkProfileFriendStatus(profileUrl) {
+function withProfileTab(profileUrl, callback) {
   return new Promise((resolve) => {
     chrome.tabs.create({ url: profileUrl, active: false }, (tab) => {
       const tabId = tab.id;
@@ -367,45 +369,89 @@ function checkProfileFriendStatus(profileUrl) {
 
       function onUpdated(updatedTabId, changeInfo) {
         if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
-        setTimeout(() => {
-          sendToTab(tabId, { type: 'CHECK_FRIEND_STATUS' })
-            .then(finish)
-            .catch((err) => finish({ isFriend: false, reason: err.message }));
+        setTimeout(async () => {
+          try {
+            finish(await callback(tabId));
+          } catch (err) {
+            finish({ error: err.message });
+          }
         }, 1500);
       }
       chrome.tabs.onUpdated.addListener(onUpdated);
 
-      timeoutHandle = setTimeout(() => finish({ isFriend: false, reason: 'timed out loading profile page' }), 15000);
+      timeoutHandle = setTimeout(() => finish({ error: 'timed out loading profile page' }), 15000);
     });
   });
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
- * Walks everyone currently in `requested` state and checks whether they've
- * actually accepted. This is deliberately a separate, on-demand step, not
- * something folded into the discovery batch — checking acceptance means
- * opening a real background tab per person, which is a meaningfully
- * different (and slower) kind of work than screening a suggestions list.
+ * Walks everyone currently in `requested` state, one profile visit each:
+ * check acceptance, and if not accepted AND outstanding past
+ * settings.staleRequestDays, cancel it in the same visit rather than
+ * opening their profile twice. Deliberately a separate, on-demand step, not
+ * folded into the discovery batch — this is a meaningfully different (and
+ * slower) kind of work than screening a suggestions list.
  */
 async function checkAcceptances() {
+  const settings = await getSettings();
+  const staleMs = (settings.staleRequestDays ?? 14) * DAY_MS;
   const requested = await listByState('requested');
   const results = [];
+
   for (const person of requested) {
     try {
-      const status = await checkProfileFriendStatus(person.profileUrl);
-      if (status.isFriend) {
+      const outcome = await withProfileTab(person.profileUrl, async (tabId) => {
+        const status = await sendToTab(tabId, { type: 'CHECK_FRIEND_STATUS' });
+        if (status.isFriend) return { isFriend: true };
+
+        const ageMs = person.requestedAt ? Date.now() - person.requestedAt : 0;
+        if (person.requestedAt && ageMs > staleMs) {
+          const cancelResult = await sendToTab(tabId, {
+            type: 'CANCEL_FRIEND_REQUEST',
+            testMode: settings.testMode,
+          });
+          return { isFriend: false, stale: true, cancelResult, daysWaiting: Math.floor(ageMs / DAY_MS) };
+        }
+        return { isFriend: false, stale: false, daysWaiting: Math.floor(ageMs / DAY_MS) };
+      });
+
+      if (outcome.error) {
+        results.push({ name: person.name, accepted: false, error: outcome.error });
+      } else if (outcome.isFriend) {
         await markAccepted(person.id);
         await log('info', 'Friend request accepted', { name: person.name });
         results.push({ name: person.name, accepted: true });
+      } else if (outcome.stale && outcome.cancelResult?.cancelled) {
+        await markCancelled(person.id);
+        await log('info', 'Stale friend request cancelled', { name: person.name, daysWaiting: outcome.daysWaiting });
+        results.push({ name: person.name, accepted: false, cancelled: true, daysWaiting: outcome.daysWaiting });
+      } else if (outcome.stale) {
+        // Stale enough to try, but the cancel click itself didn't succeed
+        // (e.g. Test Mode) — surfaced so this is never a guessing game.
+        results.push({
+          name: person.name,
+          accepted: false,
+          cancelled: false,
+          cancelReason: outcome.cancelResult?.reason,
+          daysWaiting: outcome.daysWaiting,
+        });
       } else {
-        results.push({ name: person.name, accepted: false, reason: status.reason });
+        results.push({ name: person.name, accepted: false, stillWaiting: true, daysWaiting: outcome.daysWaiting });
       }
     } catch (err) {
       await log('error', 'Acceptance check failed — continuing', { name: person.name, error: err.message });
       results.push({ name: person.name, accepted: false, error: err.message });
     }
   }
-  return { checked: requested.length, accepted: results.filter((r) => r.accepted).length, results };
+
+  return {
+    checked: requested.length,
+    accepted: results.filter((r) => r.accepted).length,
+    cancelled: results.filter((r) => r.cancelled).length,
+    results,
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

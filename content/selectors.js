@@ -59,6 +59,16 @@
     // DM-sending step later (opens the message composer).
     profileMessageButton: '[aria-label="Message"][role="button"]:not([aria-hidden="true"])',
 
+    // Confirmed live (2026-09-01), from Obi Dike's real profile (a genuine
+    // still-pending request from today): while a request is outstanding but
+    // not yet accepted, the button reads "Cancel Request <Name>" — same
+    // dynamic-name-suffix pattern as Add Friend/Remove. Verified it doesn't
+    // cross-match profileFriendsButton or profileAddFriendButton — all
+    // three states are mutually exclusive on the real page. Per Greg's
+    // design (2026-09-01): a request still in this state past
+    // settings.staleRequestDays gets cancelled during the acceptance check.
+    profileCancelRequestButton: '[aria-label^="Cancel Request "][role="button"]:not([aria-hidden="true"])',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

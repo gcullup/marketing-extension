@@ -65,4 +65,16 @@
     btn.click();
     return { sent: true };
   };
+
+  // Withdraws a still-outstanding friend request via Facebook's own "Cancel
+  // Request" affordance — per Greg's design (2026-09-01), for anyone who
+  // hasn't accepted after settings.staleRequestDays. Same assumption as
+  // clickProfileAddFriend: caller has already navigated here.
+  MKT.act.cancelFriendRequest = function (testMode) {
+    const btn = document.querySelector(MKT.selectors.profileCancelRequestButton);
+    if (!btn) return { cancelled: false, reason: 'cancel request button not found' };
+    if (testMode) return { cancelled: false, reason: 'test mode — no real click performed' };
+    btn.click();
+    return { cancelled: true };
+  };
 })();

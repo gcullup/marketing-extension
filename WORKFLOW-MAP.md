@@ -646,6 +646,26 @@ than just Aaron Bihl — real accumulated activity from today's Send Queue testi
 3 accepted (Aaron Bihl, Alex Barshop, Hunter Hyde) / 4 not yet (Obi Dike, Patrick Falcone, Brian
 Pitcher, Tyler Allen), zero errors or timeouts across the batch. Acceptance detection holds up
 beyond the single-person case, not just the original test.
+
+**Stale-request cleanup added (2026-09-01), per Greg** — maps to the original Step 2 spec
+("cancel outstanding requests"), time-based here (default 14 days, configurable in Settings) rather
+than the volume-based (200/150) trigger originally described there. New signal verified live
+against Obi Dike's real still-pending profile: while outstanding, the button reads
+"Cancel Request &lt;Name&gt;" — same dynamic-name-suffix pattern as Add Friend/Remove, confirmed it
+doesn't cross-match the Friends or Add-Friend selectors. Built `MKT.act.cancelFriendRequest`
+(content), `markCancelled` (ledger — `requested` → `cancelled`), and consolidated the whole check
+into one profile visit per person: `checkProfileFriendStatus` was generalized into
+`withProfileTab`, a reusable "open a background tab, let the callback send as many messages as it
+needs, always clean up" helper, so checking acceptance AND (if stale) cancelling happens in a
+single visit rather than opening the same profile twice. The three-way decision (accepted / stale
+→ cancel / still waiting) and the day-boundary math were verified in a live browser JS engine
+before wiring in — including the exact-14-days edge case (stays within the window; only strictly
+past it triggers cancellation) and confirming acceptance always takes priority over staleness (a
+very old but just-accepted request never gets wrongly cancelled).
+**Pending: Greg runs "Check Accepted Friends" again and confirms it reports on the 4 still-pending
+people (Obi Dike, Patrick Falcone, Brian Pitcher, Tyler Allen) with real `daysWaiting` values, none
+of them old enough yet to actually trigger a cancellation.**
+
 - [ ] 2.1 Cohort query: accepted >= N days ago, never DM'd, not recently requested by us —
       `acceptedAt` is now being set (2.0 above), so this has real data to query against once built
 - [ ] 2.2 Tone guide + message template captured in settings
