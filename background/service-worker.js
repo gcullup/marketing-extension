@@ -8,7 +8,7 @@ import { log } from '../lib/log.js';
 import { matchesAny, matchesAnyExact } from '../lib/fuzzy.js';
 import { screenCandidate } from '../lib/claude.js';
 import { computeVerdict } from '../lib/verdict.js';
-import { extractProfileId, getPerson, recordScreening } from '../lib/ledger.js';
+import { extractProfileId, getPerson, recordScreening, markRemovalAttempt } from '../lib/ledger.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initSettingsIfMissing();
@@ -230,8 +230,38 @@ async function runDiscoveryBatch(tabId) {
       }
       if (scrapeResult.skippedScrape) {
         // Already known — doesn't count toward today's limit, since nothing
-        // new was screened.
-        results.push({ name: candidate.name, ledgerState: scrapeResult.ledgerState, skipped: true });
+        // new was screened. But if they were rejected and removal never
+        // actually succeeded (confirmed live, 2026-09-01: removal used to be
+        // a one-shot attempt tied to the exact moment of the fresh reject —
+        // anyone whose attempt failed, or who was rejected before Remove
+        // existed at all, sat visible in the list forever, since every later
+        // cache hit silently skipped past the removal logic), retry it here.
+        // Cheap — we already have their href from the currently-loaded list,
+        // no re-scrape needed, and since we just found them via
+        // listCandidates(), their row is confirmed present right now.
+        let removed = scrapeResult.removedFromSuggestions === true ? true : undefined;
+        let removedReason;
+        if (scrapeResult.ledgerState === 'rejected' && scrapeResult.removedFromSuggestions !== true) {
+          didInteractWithFacebook = true; // a real click, even though the scrape itself was skipped
+          const removeResult = await sendToTab(tabId, {
+            type: 'REMOVE_CANDIDATE',
+            href: candidate.href,
+            testMode: settings.testMode,
+          });
+          removed = removeResult.removed;
+          removedReason = removeResult.reason;
+          if (removed) {
+            const id = extractProfileId(candidate.href);
+            if (id) await markRemovalAttempt(id, true);
+          }
+        }
+        results.push({
+          name: candidate.name,
+          ledgerState: scrapeResult.ledgerState,
+          skipped: true,
+          removed,
+          removedReason,
+        });
         continue;
       }
 
@@ -258,6 +288,10 @@ async function runDiscoveryBatch(tabId) {
         });
         removed = removeResult.removed;
         removedReason = removeResult.reason; // surfaced so "removed: false" is never a guessing game
+        if (removed) {
+          const id = extractProfileId(candidate.href);
+          if (id) await markRemovalAttempt(id, true);
+        }
       }
 
       results.push({
@@ -321,7 +355,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       const existing = await getPerson(id);
       if (existing?.screening) {
-        sendResponse({ cached: true, ledgerState: existing.state, ...existing.screening });
+        sendResponse({
+          cached: true,
+          ledgerState: existing.state,
+          removedFromSuggestions: existing.removedFromSuggestions === true,
+          ...existing.screening,
+        });
       } else {
         sendResponse({ cached: false });
       }

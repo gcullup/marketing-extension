@@ -564,6 +564,25 @@ legitimate future task** — revisit if scan volumes grow large enough that a ba
 duration (not even counting added pacing) starts pushing into the MV3 kill-risk window, or if
 Greg wants session-level pacing beyond what a few-second inter-candidate gap provides.
 
+**Real gap found and fixed the same day (2026-09-01), per Greg:** rejected people weren't
+disappearing from the suggestions list on later scans. Traced it directly from a real batch result:
+5 of 6 rejected people that run showed `skipped: true` with no `removed` field at all — only the
+one *freshly* rejected that run showed `removed: true`. Root cause: removal was a one-shot attempt
+tied to the exact moment of a fresh reject; a cache hit skipped straight past that logic on every
+later run, so anyone whose first attempt failed — or who was rejected before the Remove feature
+existed earlier today — sat visible in the list forever with no retry, ever. **Fixed:** added
+`removedFromSuggestions` to the ledger record (`lib/ledger.js`'s new `markRemovalAttempt`, only
+ever sets it true, never resets a failed attempt back to false, so retries keep happening until one
+actually succeeds), forwarded it through `CHECK_CACHED_SCREENING`'s response, and added a retry
+in `runDiscoveryBatch`'s cache-hit branch — cheap, since the candidate's href is already in hand
+from the currently-loaded list, so no re-scrape is needed, and (better than the Send Queue's later
+find-them-in-the-list problem) they're confirmed present right now, since we just found them via
+`listCandidates()` to process them at all. Also now correctly counts as real interaction for the
+inter-candidate pacing delay above, since it's a genuine click even when the scrape itself was
+skipped. Verified the retry/no-retry/never-touches-other-states logic in a live browser JS engine
+before wiring in. **Pending: Greg runs another batch and confirms previously-stuck rejected people
+(e.g. Steven Enns, Mike Perdue) now get `removed: true` and actually disappear from the list.**
+
 **Reset Queue built (2026-08-31), per Greg:** after a day of heavy testing, Review Queue (18
 waiting) and Send Queue (9 queued) had accumulated a lot of test-run artifacts with no way to clear
 them. Added `clearByState(state)` to `lib/ledger.js` — deletes matching records from the ledger
