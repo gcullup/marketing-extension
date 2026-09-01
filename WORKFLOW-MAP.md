@@ -916,6 +916,17 @@ by the existing `storage` permission). Same technique could extend to live-updat
 Queue's own lists if a Discovery Batch runs while one is open — not built, just noted as an
 available option if it comes up.
 
+**Panel section labels renumbered (2026-09-01), per Greg, ahead of starting Step 3 (content
+creation):** the panel had informally labeled its Discover/Review/Send sections "Step 1," "Step 2,"
+and "Step 3" — a real naming collision waiting to happen, since the ORIGINAL 9-step plan's actual
+Step 2 is "cancel outstanding requests" and actual Step 3 is "content generation" (Phase 3 below),
+which is exactly the work about to start. Relabeled to **Step 1A (Discover), 1B (Review), 1C
+(Send)** — all three sub-parts of the plan's real Step 1 (Friend Discovery & Queueing), which is
+what they always were. Confirmed with Greg: Step 9 (Check Accepted Friends / DM Queue) keeps its
+number as-is rather than becoming "Step 2," since Steps 2 and 3-8 remain deferred/unbuilt and
+renumbering it would just trade one inconsistency for another. Pure markup label changes in
+`panel.html` — no script changes needed.
+
 ---
 
 ## Session Log

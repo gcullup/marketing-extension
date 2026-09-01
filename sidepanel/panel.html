@@ -112,7 +112,7 @@
     <h1>TNG Marketing Extension</h1>
     <div id="status">Checking storage…</div>
 
-    <div class="step-label">Step 1 — Discover</div>
+    <div class="step-label">Step 1A — Discover</div>
     <p>
       <button id="runBatchBtn">Run Discovery Batch (screens up to today's scan limit — can take several minutes)</button>
       <span class="spinner" id="batchSpinner" style="display: none;"></span>
@@ -123,16 +123,16 @@
     </div>
     <div id="batchResult"></div>
 
-    <div class="step-label">Step 2 — Review</div>
+    <div class="step-label">Step 1B — Review</div>
     <p><a href="review.html" target="_blank" id="reviewQueueLink" class="button-link">Review Queue</a></p>
 
-    <div class="step-label">Step 3 — Send</div>
+    <div class="step-label">Step 1C — Send</div>
     <p><a href="send.html" target="_blank" id="sendQueueLink" class="button-link">Send Queue</a></p>
 
-    <div class="step-label" style="margin-top: 20px;">Step 9 (new) — Check Accepted Friends</div>
+    <div class="step-label" style="margin-top: 20px;">Step 9 — Check Accepted Friends</div>
     <p class="hint" style="font-size: 11px; color: #888; margin: 0 0 6px;">
       Opens each pending request's real profile in the background to check whether they've
-      accepted. New today — the foundation for Step 9, not yet a full pipeline.
+      accepted, and cancels anything gone stale.
     </p>
     <p>
       <button id="checkAcceptancesBtn">Check Accepted Friends</button>
