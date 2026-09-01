@@ -107,33 +107,26 @@ function renderCard(person, remaining) {
     sendBtn.disabled = true;
     statusEl.textContent = 'Sending…';
 
-    const tab = await findSuggestionsTab();
-    if (!tab) {
-      // A plain error message here just describes the problem; a clickable
-      // link actually lets Greg fix it in one click instead of remembering
-      // the URL and switching tabs himself.
-      statusEl.textContent = '';
-      statusEl.append('No facebook.com/friends/suggestions tab open — ');
-      const openLink = document.createElement('a');
-      openLink.href = 'https://www.facebook.com/friends/suggestions';
-      openLink.target = '_blank';
-      openLink.rel = 'noopener';
-      openLink.textContent = 'open one';
-      statusEl.append(openLink);
-      statusEl.append(', then try again.');
-      sendBtn.disabled = false;
-      return { sent: false, reason: 'no suggestions tab open' };
-    }
-
     const settings = await getSettings();
-    let result = await sendMessageToTab(tab.id, {
-      type: 'SEND_FRIEND_REQUEST',
-      href: person.profileUrl,
-      testMode: settings.testMode,
-    });
+    const tab = await findSuggestionsTab();
+    let result = tab
+      ? await sendMessageToTab(tab.id, {
+          type: 'SEND_FRIEND_REQUEST',
+          href: person.profileUrl,
+          testMode: settings.testMode,
+        })
+      : { sent: false, reason: 'no suggestions tab open' };
 
-    if (!result.sent && result.reason === 'candidate not found in list') {
-      statusEl.textContent = "Not currently visible in the suggestions list — trying their profile page directly…";
+    // Both "no suggestions tab at all" and "tab open but this person isn't
+    // currently rendered in it" land on the same remedy: their profile page
+    // works regardless of list/tab state. Falling back automatically here
+    // (rather than stopping to ask, like the old "open one" link did) is
+    // what makes Process All able to run unattended without a suggestions
+    // tab open at all.
+    if (!result.sent && (result.reason === 'candidate not found in list' || result.reason === 'no suggestions tab open')) {
+      statusEl.textContent = tab
+        ? 'Not currently visible in the suggestions list — trying their profile page directly…'
+        : 'No suggestions tab open — trying their profile page directly…';
       result = await sendViaProfilePage(person, settings.testMode);
     }
 
