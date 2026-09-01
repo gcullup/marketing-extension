@@ -489,8 +489,13 @@ background tab, waits for it to finish loading, clicks there, and cleans up the 
 list attempt specifically failed with "candidate not found in list" (not for other failure reasons
 like Test Mode). The manual link still exists as the final fallback if this also fails (e.g. their
 profile page structure differs, or the button truly isn't there).
-**Pending: Greg retests Send Queue with Test Mode on, confirms the profile-page fallback triggers
-and correctly reports "test mode — no real click performed" without ever clicking anything real.**
+**Confirmed live (2026-08-31):** re-tested on Aaron Bihl — the profile-page fallback correctly
+triggered, navigated, found the real Add Friend button, and Test Mode correctly blocked the click
+with the exact expected message. The entire sending path (list-based, profile-page fallback, and
+the Test Mode safety gate on both) is now verified working end to end. **Step 1's core loop —
+scan → screen → review → send — is fully built and mechanically proven.** Remaining before formal
+sign-off: 1.11 (golden-set eval) and 1.12 (one real low-volume day with Test Mode off), both of
+which are validation/rollout steps rather than new code.
 - [x] 1.10 Timing — **assisted-click sending doesn't need simulated inter-action delays**: a human
       clicking one send at a time from the Send Queue already paces at human speed, so the
       randomized-delay pattern used in the automated discovery batch doesn't apply here. The daily
