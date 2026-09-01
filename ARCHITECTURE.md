@@ -521,15 +521,63 @@ Facebook profile information about prospects.
 2. **MV3 service worker termination.** The background script is killed after roughly 30s idle and
    any in-memory variable vanishes. All state persists to storage; use `chrome.alarms`, never
    `setTimeout`, for anything longer than a few seconds.
-   **Live, real, currently untested risk (2026-08-31):** the discovery batch loop (`lib/ledger.js`
-   + `runDiscoveryBatch` in `background/service-worker.js`) can run for several minutes across
-   many candidates, entirely inside one message handler. It's not confirmed whether Chrome kills
-   the service worker mid-batch under real conditions. Designed around the risk rather than
-   assuming it away: every candidate is written to the ledger the moment they're screened, not
-   buffered until the end, so a mid-batch kill loses nothing already-completed — re-running the
-   batch just resumes via dedupe. If real testing shows this is a frequent problem, the proper fix
-   is `chrome.alarms`-driven incremental resumption rather than one long-running call; not built
-   yet since it's speculative complexity until proven necessary.
+   **Confirmed live, real, and hit for the first time (2026-09-01):** the old discovery batch loop
+   (one continuous `while(true)` inside `runDiscoveryBatch`, entirely within a single message
+   handler) was killed mid-run on a real 50-candidate batch — screened steadily for ~27 minutes,
+   then simply stopped with no "Discovery batch finished" log line, and the side panel's
+   `chrome.runtime.sendMessage` callback got
+   `chrome.runtime.lastError.message === "The message channel closed before a response was
+   received."`, the textbook signature of the service worker being torn down mid-call. Nothing
+   already-screened was lost (every candidate was written to the ledger immediately, not buffered),
+   but the batch itself silently died without ever completing, and the user had to notice and
+   re-run it manually.
+
+   **Fixed (2026-09-01, built — not yet live-verified, see WORKFLOW-MAP.md's Step 1 section for the
+   test checklist):** `runDiscoveryBatch` was rebuilt as `startDiscoveryBatch` +
+   `processDiscoveryStep`, driven by `chrome.alarms` instead of one long-lived function. Every
+   invocation processes at most a small, bounded chunk of work (one real-interaction candidate, or
+   up to 25 consecutive free cache-hit skips, or up to 15 list-scroll attempts), persists full
+   progress to `chrome.storage.local` after every single step — not just at the end — and then
+   schedules the next step via `chrome.alarms.create` rather than an in-process `await`/`setTimeout`.
+   `chrome.alarms` survives the service worker being torn down and restarted; nothing in-process
+   does. A `chrome.alarms.onAlarm` listener resumes the batch on every subsequent tick by reading
+   the persisted state back out of storage.
+
+   **Real, deliberate tradeoff:** Chrome clamps `chrome.alarms` to fire no more often than roughly
+   once every 30 seconds, even when a shorter delay is requested — confirmed directly from Chrome's
+   own `chrome.alarms` documentation, not assumed. The original 3-15s inter-candidate pacing
+   (`settings.timing.minDelaySeconds`/`maxDelaySeconds`) can no longer be honored at that
+   granularity: every real-interaction step is now realistically at least ~30s from the next
+   (`max(30s, the configured delay)`), which the Settings page's Timing section now says
+   explicitly. Judged worth it — surviving termination reliably matters more than sub-30s pacing
+   precision, and the bigger anti-detection lever was always session-level (daily caps, human
+   approval gates), not the exact gap between two candidates. A full-scale batch (e.g. the default
+   80/day scan limit) can now legitimately take well over an hour of real wall-clock time with
+   nothing wrong at all, so the batch's own safety duration cap was widened from 20 minutes to 4
+   hours to match (the 300-candidate safety cap is unchanged).
+
+   Also handled: a resumed batch's original Facebook tab might be closed or navigated away from
+   Facebook entirely by the time a much-later alarm fires (`validateBatchTab` checks `chrome.tabs.get`
+   and the tab's origin, and fails that batch gracefully with a stored, human-readable error rather
+   than throwing into the void — deliberately does NOT require the exact suggestions-page URL, since
+   clicking into a candidate is a normal, already-documented split-view URL change, not a
+   navigation-away); a dev reload of the unpacked extension clearing a scheduled alarm while leaving
+   the persisted "running" state behind (self-healed on `onInstalled`/`onStartup`, and again if
+   "Run Discovery Batch" is clicked again while one is already running); and the side panel's
+   `RUN_DISCOVERY_BATCH` request/response contract, which used to block on one response containing
+   the final summary — it now starts (or attaches to) the batch and returns almost immediately, with
+   live progress via the existing `BATCH_PROGRESS` broadcast plus a new final `BATCH_COMPLETE`
+   broadcast, and a `GET_BATCH_STATUS` message so the panel shows the right state if reopened
+   mid-batch. A Stop button was added, though — unlike the Send Queue's Process All Stop, which
+   polls an in-process wait every 500ms — stopping here can take up to one inter-candidate pacing
+   interval (at least ~30s) to fully land, since there is deliberately no long-running loop left to
+   poll.
+
+   **Known related risk, explicitly out of scope for this fix:** `checkAcceptances` (same file) has
+   a similar shape — it loops over everyone in `requested` state, opening a background tab per
+   person — and could in principle hit the same MV3 termination risk at large enough volume. Not
+   touched here since it hasn't actually failed in practice yet; flagged for whoever picks it up
+   next if it ever does.
 3. **Virtualized lists.** The suggestions feed renders only what is on screen. Naive scraping
    returns about 8 results and stops. Needs incremental scroll-and-collect with a stable dedupe key.
 4. **Resumability.** Extension reloads kill in-flight work. Every action is idempotent and marked

@@ -114,13 +114,14 @@
 
     <div class="step-label">Step 1A — Discover</div>
     <p>
-      <button id="runBatchBtn">Run Discovery Batch (screens up to today's scan limit — can take several minutes)</button>
+      <button id="runBatchBtn">Run Discovery Batch (screens up to today's scan limit — runs in the background, keeps going even if you close this panel)</button>
       <span class="spinner" id="batchSpinner" style="display: none;"></span>
     </p>
     <div class="progress-wrap" id="batchProgressWrap">
       <div class="progress-bar-outer"><div class="progress-bar-inner" id="batchProgressBar"></div></div>
       <div class="progress-text" id="batchProgressText"></div>
     </div>
+    <p><button id="stopBatchBtn" style="display: none;">Stop</button></p>
     <div id="batchResult"></div>
 
     <div class="step-label">Step 1B — Review</div>

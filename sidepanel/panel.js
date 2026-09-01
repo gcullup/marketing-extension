@@ -44,6 +44,7 @@ async function init() {
   }
 
   await refreshQueueCounts();
+  restoreBatchStatus();
 }
 
 pingBtn.addEventListener('click', async () => {
@@ -190,23 +191,55 @@ viewLedgerBtn.addEventListener('click', async () => {
 });
 
 const runBatchBtn = document.getElementById('runBatchBtn');
+const stopBatchBtn = document.getElementById('stopBatchBtn');
 const batchResult = document.getElementById('batchResult');
 const batchSpinner = document.getElementById('batchSpinner');
 const batchProgressWrap = document.getElementById('batchProgressWrap');
 const batchProgressBar = document.getElementById('batchProgressBar');
 const batchProgressText = document.getElementById('batchProgressText');
 
-// Pushed live from background/service-worker.js's runDiscoveryBatch (once
-// per candidate, via a `finally` so it fires regardless of outcome) — the
-// only way to show real progress during a run that can take several
-// minutes, since the original request/response only reports once at the
-// very end.
-chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type !== 'BATCH_PROGRESS') return;
-  const { candidatesTried, newlyScreened, dailyLimit, lastName } = message;
+// Revised 2026-09-01: the discovery batch used to be one continuous
+// background call that blocked on a single final response — confirmed live
+// to silently die mid-batch when MV3 kills the service worker (see
+// ARCHITECTURE.md hazard #2 and background/service-worker.js's discovery
+// batch section for the full story). It's now chrome.alarms-driven and
+// spans many separate invocations, so RUN_DISCOVERY_BATCH only ever starts
+// (or attaches to) the batch and returns almost immediately — the actual
+// progress arrives via these two broadcasts instead of a blocking response.
+function setBatchRunningUi(running) {
+  runBatchBtn.disabled = running;
+  stopBatchBtn.style.display = running ? 'inline-block' : 'none';
+  batchSpinner.style.display = running ? 'inline-block' : 'none';
+  batchProgressWrap.style.display = running ? 'block' : 'none';
+}
+
+function renderBatchProgress({ candidatesTried, newlyScreened, dailyLimit, lastName }) {
   const pct = dailyLimit > 0 ? Math.min(100, Math.round((newlyScreened / dailyLimit) * 100)) : 0;
   batchProgressBar.style.width = `${pct}%`;
-  batchProgressText.textContent = `${newlyScreened}/${dailyLimit} screened (${candidatesTried} tried) — last: ${lastName}`;
+  batchProgressText.textContent = lastName
+    ? `${newlyScreened}/${dailyLimit} screened (${candidatesTried} tried) — last: ${lastName}`
+    : `${newlyScreened}/${dailyLimit} screened (${candidatesTried} tried)`;
+}
+
+// Pushed live from background/service-worker.js's processDiscoveryStep
+// (once per candidate) — the only way to show real progress during a run
+// that can now legitimately span far longer than before, since chrome.alarms
+// paces steps at least ~30s apart (see the background file for why).
+// BATCH_COMPLETE is new: the old code's single request/response used to
+// deliver the final summary directly; now that RUN_DISCOVERY_BATCH returns
+// immediately, this broadcast is the only way the panel finds out the batch
+// actually finished (daily limit reached, list exhausted, stopped, or
+// errored out — e.g. the original tab was closed or navigated away).
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'BATCH_PROGRESS') {
+    renderBatchProgress(message);
+    return;
+  }
+  if (message?.type === 'BATCH_COMPLETE') {
+    setBatchRunningUi(false);
+    batchResult.textContent = JSON.stringify(message, null, 2);
+    return;
+  }
 });
 
 runBatchBtn.addEventListener('click', async () => {
@@ -216,29 +249,69 @@ runBatchBtn.addEventListener('click', async () => {
     return;
   }
 
-  runBatchBtn.disabled = true;
-  batchSpinner.style.display = 'inline-block';
-  batchProgressWrap.style.display = 'block';
+  batchResult.textContent = '';
+  setBatchRunningUi(true);
   batchProgressBar.style.width = '0%';
   batchProgressText.textContent = 'Starting…';
-  batchResult.textContent = '';
 
   chrome.runtime.sendMessage({ type: 'RUN_DISCOVERY_BATCH', tabId: tab.id }, (response) => {
-    runBatchBtn.disabled = false;
-    batchSpinner.style.display = 'none';
-    batchProgressWrap.style.display = 'none';
-
     if (chrome.runtime.lastError) {
+      setBatchRunningUi(false);
       batchResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
       return;
     }
-    if (!response?.ok && response?.error) {
-      batchResult.textContent = `Batch failed: ${response.error}`;
+    if (!response) {
+      setBatchRunningUi(false);
+      batchResult.textContent = 'Batch failed to start: no response from background.';
       return;
     }
-    batchResult.textContent = JSON.stringify(response, null, 2);
+    if (response.alreadyRunning) {
+      // Someone else already started this (or it's resuming after a
+      // reload) — attach to it rather than reporting a fresh start.
+      batchProgressText.textContent = 'A batch is already running — showing its live progress…';
+      renderBatchProgress(response);
+      return; // stays in the "running" UI state; broadcasts take it from here
+    }
+    if (response.status === 'done' || response.status === 'error' || response.status === 'stopped') {
+      // Finished before ever scheduling an alarm — e.g. today's scan limit
+      // is set to 0.
+      setBatchRunningUi(false);
+      batchResult.textContent = JSON.stringify(response, null, 2);
+      return;
+    }
+    // status === 'running' (just started) — leave the running UI up;
+    // BATCH_PROGRESS and the eventual BATCH_COMPLETE broadcast take over
+    // from here. The very first progress update can take up to ~30s
+    // (chrome.alarms' minimum interval), not the near-instant start the old
+    // in-process loop had.
+    batchProgressText.textContent = 'Started — first candidate will be screened shortly (can take up to ~30s)…';
   });
 });
+
+stopBatchBtn.addEventListener('click', () => {
+  batchProgressText.textContent = 'Stopping — can take up to one inter-candidate pause before it fully lands…';
+  chrome.runtime.sendMessage({ type: 'STOP_DISCOVERY_BATCH' }, (response) => {
+    if (chrome.runtime.lastError) {
+      batchResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
+    }
+    // Final UI cleanup happens when the BATCH_COMPLETE broadcast arrives.
+  });
+});
+
+// Restores the running/idle UI correctly if the panel is opened (or
+// reopened) while a batch is already in progress — otherwise reopening mid-
+// batch would show the button as idle and ready to click, which would then
+// incorrectly report "already running" instead of just reflecting reality
+// up front.
+function restoreBatchStatus() {
+  chrome.runtime.sendMessage({ type: 'GET_BATCH_STATUS' }, (response) => {
+    if (chrome.runtime.lastError || !response) return;
+    if (response.status === 'running') {
+      setBatchRunningUi(true);
+      renderBatchProgress(response);
+    }
+  });
+}
 
 const checkAcceptancesBtn = document.getElementById('checkAcceptancesBtn');
 const acceptancesResult = document.getElementById('acceptancesResult');

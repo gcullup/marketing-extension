@@ -8,7 +8,10 @@ Update this file at the end of every working session.
 - **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
   2026-08-31). Remaining before formal sign-off: 1.11 golden-set eval, 1.12 a full real
-  low-volume day (one real send so far, not yet a full day).
+  low-volume day (one real send so far, not yet a full day). **Discovery Batch rebuilt on
+  `chrome.alarms` (2026-09-01)** after MV3 hazard #2 was actually confirmed live (a real batch
+  silently died mid-run) — built, not yet live-verified; see the test checklist in Phase 1 below and
+  ARCHITECTURE.md hazard #2.
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
   pending. Endpoint 2 (Step 9 — greeting DM) — **proven live end to end 2026-09-01**: acceptance
   detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
@@ -635,6 +638,89 @@ confirmed the `autoSend` Settings checkbox is completely inert — saved and loa
 by any actual logic, same as the timing settings turned out to be. Assisted click is the only real
 path today, provably so, not just by design intent.
 
+**Hazard #2 (MV3 service worker termination) actually hit for real, and fixed — built, NOT yet
+live-verified (2026-09-01), per Greg's report.** The exact risk ARCHITECTURE.md flagged as
+"currently untested" on 2026-08-31 happened for real: a batch with a daily scan limit of 50
+screened steadily for ~27 minutes, then silently died — no "Discovery batch finished" log line,
+and the side panel's `chrome.runtime.sendMessage` callback got
+`chrome.runtime.lastError.message === "The message channel closed before a response was
+received."` — the classic signature of the service worker being killed mid-call. Nothing
+already-screened was lost (every candidate hits the ledger immediately), but the batch itself
+never completed and nobody was told why.
+
+**Rebuilt around `chrome.alarms` instead of one continuous function**, per the fix
+ARCHITECTURE.md's hazard #2 always said was the "proper" answer once this stopped being
+speculative. `runDiscoveryBatch` (background/service-worker.js) is now `startDiscoveryBatch` +
+`processDiscoveryStep`:
+- Every invocation processes at most a small bounded chunk (one real-interaction candidate, up to
+  25 consecutive free cache-hit skips, or up to 15 list-scroll attempts) — never the whole batch —
+  and persists full progress to `chrome.storage.local` (`mkt_discovery_batch_state`) after every
+  single step, not just at the end.
+- The next step is scheduled via `chrome.alarms.create` rather than an in-process
+  `await`/`setTimeout`. A `chrome.alarms.onAlarm` listener resumes by reading the persisted state
+  back out and continuing from exactly there — this is what survives a service-worker kill that a
+  pending `setTimeout` cannot.
+- **Real, deliberate tradeoff, confirmed from Chrome's own `chrome.alarms` docs (not assumed):**
+  Chrome clamps alarms to fire no more often than ~30 seconds, even when asked for less. The old
+  3-15s inter-candidate pacing can't be honored at that granularity anymore — every real-interaction
+  step is now realistically `max(30s, the configured delay)` apart. Settings' Timing section hint
+  text was updated to say this plainly rather than leaving the sliders implying a precision they no
+  longer have. Judged worth it: surviving termination reliably matters more than exact sub-30s
+  pacing, and the bigger anti-detection lever was always the daily caps and human approval gates,
+  not the exact gap between two candidates.
+- The batch's safety duration cap was widened from 20 minutes to 4 hours to match — a full 80/day
+  batch can now legitimately take over an hour of real wall-clock time with nothing actually wrong,
+  since every real-interaction step now costs at least ~30s of real time. The 300-candidate safety
+  cap is unchanged.
+- **Stale-tab edge case handled:** `validateBatchTab` checks `chrome.tabs.get` (tab closed?) and the
+  tab's own URL (navigated off Facebook entirely?) before every step, and fails that batch cleanly
+  with a stored, human-readable error rather than throwing into the void. Deliberately does NOT
+  require the tab to still be on the literal suggestions-page URL — clicking into a candidate is a
+  normal, already-documented split-view URL change (the list stays live underneath; see the
+  "Layout confirmed" note earlier in this file), so requiring an exact URL match would misfire on
+  every ordinary candidate visit, not just a genuine navigate-away.
+- **Concurrent-batch edge case handled:** reopening the side panel mid-batch, opening a new tab, or
+  clicking "Run Discovery Batch" again while one is already running all attach to the existing
+  in-progress batch (`alreadyRunning: true`) rather than racing a second one against it. Also
+  self-heals a real, specific gotcha: reloading the unpacked extension (already documented in this
+  file as orphaning content scripts) clears any scheduled `chrome.alarms` but NOT the persisted
+  batch state — left alone that would strand a "running" batch forever with nothing left to wake it.
+  Re-armed automatically on `onInstalled`/`onStartup` and again if "Run Discovery Batch" is clicked
+  while one is stranded.
+- **Side panel interaction model changed to match**, since a single request/response can no longer
+  span the whole batch: `RUN_DISCOVERY_BATCH` now starts (or attaches to) the batch and returns
+  almost immediately; the existing `BATCH_PROGRESS` broadcast still updates the live progress bar,
+  and a new `BATCH_COMPLETE` broadcast delivers the final summary the old response used to return
+  directly. A new `GET_BATCH_STATUS` message lets the panel restore the correct running/idle UI if
+  it's reopened mid-batch. A **Stop button** was added — unlike Send Queue's Process All Stop, which
+  polls an in-process wait every 500ms and lands within ~0.5s, this one can take up to one
+  inter-candidate pacing interval (at least ~30s) to fully land, since there's deliberately no
+  long-running loop left here to poll.
+- **Known related risk, deliberately NOT touched here:** `checkAcceptances` (same file) has a
+  similar per-person background-tab loop shape and could in principle hit the same MV3 risk at
+  large enough volume. Not fixed in this pass since it hasn't actually failed yet — flagged for
+  whoever picks it up next if it does.
+
+**Explicitly NOT yet live-tested — reasoned through by reading the code, no build step exists to
+run it outside a real browser.** What Greg should verify next time he's at the machine:
+1. Run a batch with a large daily scan limit (e.g. 50, matching the batch that actually failed) and
+   confirm it completes end to end without the "message channel closed" error, all the way to a
+   `BATCH_COMPLETE` broadcast.
+2. Confirm the progress bar/spinner still update live during the run (via `BATCH_PROGRESS`), and
+   that the very first update can take up to ~30s rather than appearing instantly.
+3. Force a service-worker kill partway through (e.g. via `chrome://serviceworker-internals` or
+   leaving the browser idle) and confirm the batch actually resumes and finishes rather than
+   stalling — this is the entire point of the rebuild and the one thing that most needs real
+   verification.
+4. Click Stop mid-batch and confirm it actually halts (allow up to ~30s+ for it to land) and reports
+   `stoppedReason: 'user_stopped'`.
+5. Reopen the side panel (or open a new one) while a batch is running and confirm it correctly shows
+   "already running" with live progress, not a fresh idle "Run Discovery Batch" button.
+6. Close the batch's original Facebook tab mid-run (or navigate it to a non-Facebook site) and
+   confirm the batch fails gracefully with a clear stored error instead of hanging silently.
+7. Reload the unpacked extension while a batch is mid-run and confirm it self-heals (either
+   automatically, or by clicking "Run Discovery Batch" again) rather than being stranded forever.
+
 ---
 
 ## Phase 2 — ENDPOINT 2: Step 9, Initial Greeting DM
@@ -1045,3 +1131,4 @@ renumbering it would just trade one inconsistency for another. Pure markup label
 | 2026-09-01 | 1/2 | Closed the inter-candidate pacing gap (3-15s between candidates in a scan batch). Built and verified stale-friend-request cleanup (cancel outstanding requests past `staleRequestDays`, both branches confirmed live). Made the Send Queue's "no suggestions tab" error message clickable. Built the "Process All" Send Queue automation (sends up to today's limit automatically, ~8-18s apart, with a confirm dialog and an interruptible Stop button). Found and fixed a real bug on its first live run (no automatic profile-page fallback when no suggestions tab was open at all — every attempt failed the same way). Re-confirmed live: Process All and Stop both work correctly against real Facebook data. |
 | 2026-09-01 | 2 | Built Step 9's greeting DM foundation and full send pipeline: cohort query, template rendering (no AI drafting, per Greg), the real Messenger composer automation (Lexical contenteditable, execCommand insertText, simulated Enter — no Send button exists), and a DM Queue review page. Found and fixed three real bugs found live in sequence: a 15s round-trip timeout left over from before human-like pacing was added (cutting sends off mid-message), a dropped first character, and the daily message/send caps only blocking at page load instead of live mid-session (fixed in both Send Queue and DM Queue). Confirmed live end to end, pacing included. Renumbered the panel's Discover/Review/Send labels to 1A/1B/1C to free up "Step 3" for content creation, per Greg. |
 | 2026-09-01 | 3 | Started Endpoint 3 (Step 3, Content Creation), per Greg's day-of-week content calendar (short-form Mon/Wed, long-form Tue/Thu with a manually-attached photo, generic engagement Fri with a manually-attached video). Confirmed 3A-3D are four destinations (personal/business/story/group) sharing one content plan, not four pipeline stages — revises D5 to allow business Page automation for content specifically. Built the day-of-week → Claude generation pipeline, a content ledger (draft/approved state per date), and a new Content review page (editable draft, live char count, Generate/Approve) — a first pass, with the actual prompt wording explicitly deferred for later refinement. |
+| 2026-09-01 | 1 | MV3 hazard #2 (service worker termination) confirmed live for the first time: a real 50-candidate Discovery Batch silently died ~27 minutes in with the classic "message channel closed" signature. Rebuilt `runDiscoveryBatch` around `chrome.alarms` (`startDiscoveryBatch`/`processDiscoveryStep`) so no single invocation spans more than a small bounded chunk of work, with full progress persisted to storage after every step and the next step scheduled via an alarm rather than an in-process wait. Confirmed from Chrome's own docs that alarms won't fire sooner than ~30s, so the old 3-15s pacing is now a floor of ~30s — flagged plainly in Settings and both docs rather than changed silently. Handled the resumed-batch edge cases: a closed/navigated-away original tab fails gracefully, a stranded alarm from a dev reload self-heals, and a second concurrent batch attaches to the existing one instead of racing it. Changed the side panel's `RUN_DISCOVERY_BATCH` contract to start-and-return-immediately, added a `BATCH_COMPLETE` broadcast and `GET_BATCH_STATUS` message, and added a Stop button. Built, explicitly **not yet live-verified** — see the test checklist earlier in this file and ARCHITECTURE.md hazard #2. Left `checkAcceptances`'s similar-shaped risk untouched and noted for later, since it hasn't failed in practice. |
