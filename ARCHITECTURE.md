@@ -435,6 +435,15 @@ applies — both the Content page's live display and `generateContent` call it, 
 re-implementing the "day default vs. override" logic separately. The choice is saved alongside the
 draft (`overrideType`) so it survives reloads and Regenerate.
 
+**Day-of-week defaults moved into Settings, per Greg (2026-09-01):** the Mon/Tue/Wed/Thu/Fri →
+content-type mapping was a hardcoded table; now it's `settings.contentCalendar` (a 7-day grid of
+dropdowns in Settings, matching the existing `scanLimitsByDay`/`maxRequestsPerDayByDay` pattern),
+threaded through `getContentPlanForDate`/`resolveContentPlan`/`generateContent` as an explicit
+parameter rather than read internally — same convention as `targetPersona` already being passed in
+rather than fetched by the library code itself. Settings' dropdown options come from
+`CONTENT_TYPE_OPTIONS` (the same list `lib/content.js` uses internally), so the two can't drift out
+of sync.
+
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
 verification for each destination, same discipline as every other Facebook interaction in this

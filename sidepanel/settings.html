@@ -57,7 +57,8 @@
         text-align: center;
         margin: 0 0 2px;
       }
-      .day-row input {
+      .day-row input,
+      .day-row select {
         text-align: center;
       }
       .two-col {
@@ -175,7 +176,7 @@
     </div>
 
     <label for="maxMessagesPerDay">Max messages per day</label>
-    <p class="hint">Messaging is the more heavily policed surface — keep this conservative. (Not yet wired to anything — Step 9 isn't built.)</p>
+    <p class="hint">Messaging is the more heavily policed surface — keep this conservative. Enforced by the DM Queue via <code>countDmSentToday</code>.</p>
     <input type="number" id="maxMessagesPerDay" min="0" />
 
     <h2>Message Templates</h2>
@@ -184,6 +185,39 @@
     <textarea id="introTemplate"></textarea>
     <label for="birthdayTemplate">Birthday message template</label>
     <textarea id="birthdayTemplate"></textarea>
+
+    <h2>Content Calendar</h2>
+    <p class="hint">Default content type per day of week for the Content page (Step 3) — Auto in the content-type override there follows this. "No content" leaves a day with nothing planned unless manually overridden there.</p>
+    <div class="day-row">
+      <div>
+        <label>Sun</label>
+        <select id="content-sun"></select>
+      </div>
+      <div>
+        <label>Mon</label>
+        <select id="content-mon"></select>
+      </div>
+      <div>
+        <label>Tue</label>
+        <select id="content-tue"></select>
+      </div>
+      <div>
+        <label>Wed</label>
+        <select id="content-wed"></select>
+      </div>
+      <div>
+        <label>Thu</label>
+        <select id="content-thu"></select>
+      </div>
+      <div>
+        <label>Fri</label>
+        <select id="content-fri"></select>
+      </div>
+      <div>
+        <label>Sat</label>
+        <select id="content-sat"></select>
+      </div>
+    </div>
 
     <h2>Timing</h2>
     <p class="hint">Pause between finishing one candidate and starting the next during a Discovery Batch run — only applied after real Facebook interaction, not after an instant already-known skip.</p>

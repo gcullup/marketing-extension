@@ -55,13 +55,14 @@ function renderBadge(state) {
 
 // Re-resolves and re-renders the plan display (day label, media note,
 // editor visibility) from whatever's currently selected in the override
-// dropdown -- shared by init() and the dropdown's own change handler so
-// there's one place that decides "what applies right now," matching
-// lib/content.js's resolveContentPlan being the one place that decides it
-// for generation too.
-function refreshPlanDisplay() {
+// dropdown plus Settings' Content Calendar -- shared by init() and the
+// dropdown's own change handler so there's one place that decides "what
+// applies right now," matching lib/content.js's resolveContentPlan being
+// the one place that decides it for generation too.
+async function refreshPlanDisplay() {
   const overrideType = contentTypeSelectEl.value || null;
-  const { dayKey, plan, isOverride } = resolveContentPlan(today, overrideType);
+  const settings = await getSettings();
+  const { dayKey, plan, isOverride } = resolveContentPlan(today, overrideType, settings.contentCalendar);
   currentPlan = plan;
   currentDayKey = dayKey;
 
@@ -93,7 +94,7 @@ async function init() {
     modifierInputEl.value = existing.modifier ?? '';
     renderBadge(existing.state);
   }
-  refreshPlanDisplay();
+  await refreshPlanDisplay();
 }
 
 contentTypeSelectEl.addEventListener('change', refreshPlanDisplay);
@@ -113,6 +114,7 @@ generateBtn.addEventListener('click', async () => {
       date: today,
       modifier,
       overrideType,
+      dayTypeMap: settings.contentCalendar,
     });
     draftTextEl.value = result.content;
     updateCharCount();

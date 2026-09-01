@@ -924,6 +924,16 @@ philosophy) — a public post is far more visible/permanent than a DM.
       otherwise-unplanned weekend day) in a live browser JS sandbox before wiring in. The choice is
       saved alongside the draft (`overrideType` in the content ledger) so reopening the page restores
       it and Regenerate keeps using the same override.
+
+      **Day-of-week defaults moved into Settings (2026-09-01), per Greg:** the Mon/Tue/Wed/Thu/Fri →
+      content-type mapping used to be a hardcoded table in `lib/content.js`. Moved to a new
+      `contentCalendar` Settings field (a 7-day grid of dropdowns, matching the existing
+      `scanLimitsByDay`/`maxRequestsPerDayByDay` day-grid pattern) so Greg can change, say, which days
+      are short-form without a code change — the same "everything user-configurable" philosophy as
+      D1/D2. `getContentPlanForDate` now takes this map as a parameter instead of reading a baked-in
+      table; `resolveContentPlan` and `generateContent` both thread it through. Settings' new dropdown
+      options are populated from `lib/content.js`'s own `CONTENT_TYPE_OPTIONS` rather than a second
+      hardcoded copy in the Settings page, so the two can't drift apart.
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story

@@ -1,8 +1,29 @@
 import { getSettings, saveSettings, exportAll, importAll, getDefaultSettings } from '../lib/store.js';
 import { log, getLogs, clearLogs } from '../lib/log.js';
+import { CONTENT_TYPE_OPTIONS } from '../lib/content.js';
 
 const $ = (id) => document.getElementById(id);
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+// Populates each day's <select> from lib/content.js's own type list, rather
+// than hardcoding a second copy in this file's markup that could drift out
+// of sync with the actual plan definitions.
+function populateContentTypeSelects() {
+  for (const day of DAYS) {
+    const select = $(`content-${day}`);
+    select.innerHTML = '';
+    const noneOption = document.createElement('option');
+    noneOption.value = '';
+    noneOption.textContent = 'No content';
+    select.appendChild(noneOption);
+    for (const { type, label } of CONTENT_TYPE_OPTIONS) {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = label.split(' — ')[0]; // drop the longer explanatory suffix, just "Short-form" etc.
+      select.appendChild(option);
+    }
+  }
+}
 
 function linesToKeywords(text) {
   return text
@@ -51,6 +72,10 @@ function renderForm(s) {
   $('staleRequestDays').value = s.staleRequestDays ?? 14;
   $('dmDelayDays').value = s.dmDelayDays ?? 2;
 
+  for (const day of DAYS) {
+    $(`content-${day}`).value = s.contentCalendar?.[day] ?? '';
+  }
+
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
 
@@ -60,6 +85,7 @@ function renderForm(s) {
 }
 
 async function populate() {
+  populateContentTypeSelects();
   renderForm(await getSettings());
 }
 
@@ -72,6 +98,11 @@ function collectFromForm() {
   const maxRequestsPerDayByDay = {};
   for (const day of DAYS) {
     maxRequestsPerDayByDay[day] = toInt($(`send-${day}`).value, 0);
+  }
+
+  const contentCalendar = {};
+  for (const day of DAYS) {
+    contentCalendar[day] = $(`content-${day}`).value;
   }
 
   return {
@@ -96,6 +127,7 @@ function collectFromForm() {
     },
     staleRequestDays: toInt($('staleRequestDays').value, 14),
     dmDelayDays: toInt($('dmDelayDays').value, 2),
+    contentCalendar,
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),
