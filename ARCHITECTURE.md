@@ -312,9 +312,10 @@ Message and send it.
   - `markDmSent(id, message)` / `countDmSentToday()` (lib/ledger.js) — records the actual message
     text sent (auditable later) and feeds a daily-limit banner reading `caps.maxMessagesPerDay`
     (already existed as a setting from Phase 0, unused until now).
-  **Pending: Greg tests with Test Mode ON first** (confirms the text actually types into the real
-  popup) **then OFF for one real send** (confirms Enter actually sends it) before this is considered
-  proven, not just built.
+  **Confirmed live (2026-09-01):** Greg tested this end to end (temporarily forcing `dmDelayDays` to
+  0 to get immediate cohort matches) — `execCommand('insertText', ...)` correctly reconciles against
+  Facebook's real Lexical editor, and the simulated Enter keypress actually sends. Step 9's greeting
+  DM is proven, not just built.
 
 ---
 

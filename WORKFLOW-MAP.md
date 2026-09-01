@@ -752,7 +752,16 @@ they're crossed off as no-longer-applicable rather than left open.
       instance**, which is the one real unknown. Test Mode deliberately stops one step short of every
       other action here: it types the real rendered text (safe) but skips the Enter dispatch, so the
       hard part (does insertText work against the real editor) can be checked with zero risk of an
-      accidental send. **Pending: Greg tests with Test Mode ON first, then OFF for one real send.**
+      accidental send.
+
+**Confirmed live (2026-09-01):** Greg tested the DM Queue after temporarily setting `dmDelayDays` to
+0 (same forcing technique used earlier for `staleRequestDays`) — 8 accepted friends immediately
+showed up as eligible. Ran a real send and confirmed it worked: `execCommand('insertText', ...)`
+correctly reconciles against Facebook's real Lexical editor, and the simulated Enter keypress
+actually submits the message. **Step 9's greeting DM is now proven end to end, not just built** —
+cohort query, template rendering, composer automation, and the actual send all confirmed against
+real data. `dmDelayDays` should be set back to a real value (2, or whatever Greg prefers) after
+testing.
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send
