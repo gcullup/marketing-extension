@@ -474,6 +474,23 @@ updated to match, leaving duplicate/conflicting entries. Reconciled below, 2026-
       direct profile link instead of a dead end. Both the card renderer and the failure-message
       path were verified injection-safe the same way as the review queue (`textContent`/`.append()`
       only, real injection payloads tested and confirmed inert).
+
+**Confirmed live (2026-08-31): the "not in list" fallback link was needed on the very first real
+test**, not a rare edge case — Aaron Bihl (queued during much earlier testing) was no longer
+rendered in the current suggestions list. Investigated with Greg via the same `$0`-console
+technique used throughout this session, which revealed the profile page's Add Friend button uses a
+**completely different aria-label** than the list version — `"Add Friend Aaron Bihl"` (capital F,
+name appended) versus `"Add friend"` (lowercase, bare). These do not cross-match; verified live.
+Given this hits immediately rather than rarely, built a real automatic fallback rather than leaving
+the manual link as the permanent answer: `profileAddFriendButton` selector added, `MKT.act.
+clickProfileAddFriend` added (no per-candidate scoping needed here — only one relevant button on a
+whole profile page), and the Send Queue now automatically opens the person's profile in a
+background tab, waits for it to finish loading, clicks there, and cleans up the tab — only when the
+list attempt specifically failed with "candidate not found in list" (not for other failure reasons
+like Test Mode). The manual link still exists as the final fallback if this also fails (e.g. their
+profile page structure differs, or the button truly isn't there).
+**Pending: Greg retests Send Queue with Test Mode on, confirms the profile-page fallback triggers
+and correctly reports "test mode — no real click performed" without ever clicking anything real.**
 - [x] 1.10 Timing — **assisted-click sending doesn't need simulated inter-action delays**: a human
       clicking one send at a time from the Send Queue already paces at human speed, so the
       randomized-delay pattern used in the automated discovery batch doesn't apply here. The daily

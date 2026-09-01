@@ -36,6 +36,16 @@
     // decoys present for both.
     removeButton: '[aria-label^="Remove "][role="button"]:not([aria-hidden="true"])',
 
+    // Confirmed live (2026-08-31): on a person's OWN profile page, the Add
+    // Friend button's aria-label is completely different from the
+    // suggestions-list version above — "Add Friend <Name>" (capital F, name
+    // appended) versus "Add friend" (lowercase, bare) in the list. These are
+    // NOT interchangeable; verified they don't cross-match each other.
+    // Exists as a fallback for when a queued person is no longer rendered
+    // in the (virtualized) suggestions list — their profile URL still works
+    // regardless of list state.
+    profileAddFriendButton: '[aria-label^="Add Friend "][role="button"]:not([aria-hidden="true"])',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

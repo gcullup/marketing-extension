@@ -27,6 +27,46 @@ function sendMessageToTab(tabId, message) {
   });
 }
 
+// Fallback for when a queued person is no longer rendered in the
+// suggestions list — confirmed live (2026-08-31) that this hits on the very
+// first real Send Queue attempt, not a rare edge case. Their profile URL
+// always works regardless of list state, so this opens it in a background
+// tab, waits for it to finish loading, clicks Add Friend there using the
+// separately-verified profile-page selector, then cleans up the tab either
+// way.
+function sendViaProfilePage(person, testMode) {
+  return new Promise((resolve) => {
+    chrome.tabs.create({ url: person.profileUrl, active: false }, (tab) => {
+      const tabId = tab.id;
+      let settled = false;
+      let timeoutHandle;
+
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        clearTimeout(timeoutHandle);
+        chrome.tabs.remove(tabId).catch(() => {});
+        resolve(result);
+      }
+
+      function onUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+        // "complete" fires on the network load; give the SPA content itself
+        // a moment more to actually render before looking for the button.
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tabId, { type: 'CLICK_PROFILE_ADD_FRIEND', testMode }, (response) => {
+            finish(chrome.runtime.lastError ? { sent: false, reason: chrome.runtime.lastError.message } : response);
+          });
+        }, 1500);
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+
+      timeoutHandle = setTimeout(() => finish({ sent: false, reason: 'timed out loading their profile page' }), 15000);
+    });
+  });
+}
+
 // Same safe-rendering discipline as review.js: person.name is scraped
 // Facebook text, effectively untrusted — every dynamic value goes through
 // textContent/property assignment, never interpolated into innerHTML.
@@ -68,11 +108,17 @@ function renderCard(person, remaining) {
     }
 
     const settings = await getSettings();
-    const result = await sendMessageToTab(tab.id, {
+    let result = await sendMessageToTab(tab.id, {
       type: 'SEND_FRIEND_REQUEST',
       href: person.profileUrl,
       testMode: settings.testMode,
     });
+
+    if (!result.sent && result.reason === 'candidate not found in list') {
+      statusEl.textContent = "Not currently visible in the suggestions list — trying their profile page directly…";
+      result = await sendViaProfilePage(person, settings.testMode);
+    }
+
     await log('info', 'Send Queue: friend request attempt', { name: person.name, result });
 
     if (result.sent) {

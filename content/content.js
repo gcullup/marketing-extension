@@ -229,6 +229,13 @@
       sendResponse(MKT.act.sendFriendRequest(message.href, message.testMode));
       return true;
     }
+    if (message?.type === 'CLICK_PROFILE_ADD_FRIEND') {
+      // Assumes this content script instance is already on the target
+      // person's own profile page — the caller (Send Queue) is responsible
+      // for navigating there first.
+      sendResponse(MKT.act.clickProfileAddFriend(message.testMode));
+      return true;
+    }
     return false;
   });
 })();

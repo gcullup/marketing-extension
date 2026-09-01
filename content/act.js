@@ -51,4 +51,18 @@
     found.match.click();
     return { removed: true };
   };
+
+  // Fallback for when a queued person is no longer rendered in the
+  // suggestions list (confirmed live, 2026-08-31 — the very first real Send
+  // Queue test hit this immediately): assumes the caller has already
+  // navigated this tab/page to the person's own profile URL. No scoping
+  // needed here, unlike the list-based functions above — there's only one
+  // relevant Add Friend button on a whole profile page.
+  MKT.act.clickProfileAddFriend = function (testMode) {
+    const btn = document.querySelector(MKT.selectors.profileAddFriendButton);
+    if (!btn) return { sent: false, reason: 'profile add friend button not found' };
+    if (testMode) return { sent: false, reason: 'test mode — no real click performed' };
+    btn.click();
+    return { sent: true };
+  };
 })();
