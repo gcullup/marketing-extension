@@ -912,7 +912,18 @@ philosophy) — a public post is far more visible/permanent than a DM.
       day's format rules (length, persona-relevance) still apply on top of it. Saved alongside the
       draft in the content ledger (`saveDraft`'s new `modifier` field) so reopening the page later
       still shows what theme produced a given draft, and Regenerate defaults to the same theme
-      instead of silently dropping it.
+      instead of silently dropping it. **Confirmed working live.**
+
+      **Content-type override added (2026-09-01), per Greg:** a dropdown (Auto / Short-form /
+      Long-form / Engagement) lets Greg force a specific content type instead of always taking the
+      day-of-week default — including picking a type on Saturday/Sunday, which otherwise have no
+      plan at all. `lib/content.js`'s new `resolveContentPlan(date, overrideType)` is the one place
+      that decides "what plan actually applies" — used by both the page's live display (day label,
+      media reminder, character-count limit) and `generateContent` itself, so the two can't drift out
+      of sync. Verified the resolution logic (day default, explicit override, and overriding an
+      otherwise-unplanned weekend day) in a live browser JS sandbox before wiring in. The choice is
+      saved alongside the draft (`overrideType` in the content ledger) so reopening the page restores
+      it and Regenerate keeps using the same override.
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story

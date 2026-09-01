@@ -427,6 +427,14 @@ persona-unrelated requirement, etc.) still apply. Saved alongside the draft in
 `lib/contentLedger.js` (`saveDraft`'s new `modifier` field) so it persists across reloads and
 Regenerate defaults to the same theme.
 
+**Content-type override, per Greg (2026-09-01):** a dropdown (Auto / Short-form / Long-form /
+Engagement) forces a specific content type instead of always taking the day-of-week default — this
+also makes Saturday/Sunday usable, since they otherwise have no plan defined at all.
+`resolveContentPlan(date, overrideType)` is the single place that decides which plan actually
+applies — both the Content page's live display and `generateContent` call it, rather than each
+re-implementing the "day default vs. override" logic separately. The choice is saved alongside the
+draft (`overrideType`) so it survives reloads and Regenerate.
+
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
 verification for each destination, same discipline as every other Facebook interaction in this

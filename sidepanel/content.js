@@ -1,10 +1,11 @@
-import { getContentPlanForDate, generateContent } from '../lib/content.js';
+import { resolveContentPlan, generateContent } from '../lib/content.js';
 import { getContentForDate, saveDraft, approveContent, CONTENT_STATES } from '../lib/contentLedger.js';
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
 import { displayLength } from '../lib/facebookFormat.js';
 
 const dayInfoEl = document.getElementById('dayInfo');
+const contentTypeSelectEl = document.getElementById('contentTypeSelect');
 const mediaNoteEl = document.getElementById('mediaNote');
 const noPlanEl = document.getElementById('noPlan');
 const editorEl = document.getElementById('editor');
@@ -52,34 +53,50 @@ function renderBadge(state) {
   stateBadgeEl.className = state === CONTENT_STATES.APPROVED ? 'approved' : 'draft';
 }
 
-async function init() {
-  const { dayKey, plan } = getContentPlanForDate(today);
+// Re-resolves and re-renders the plan display (day label, media note,
+// editor visibility) from whatever's currently selected in the override
+// dropdown -- shared by init() and the dropdown's own change handler so
+// there's one place that decides "what applies right now," matching
+// lib/content.js's resolveContentPlan being the one place that decides it
+// for generation too.
+function refreshPlanDisplay() {
+  const overrideType = contentTypeSelectEl.value || null;
+  const { dayKey, plan, isOverride } = resolveContentPlan(today, overrideType);
   currentPlan = plan;
   currentDayKey = dayKey;
 
+  mediaNoteEl.style.display = 'none';
+  mediaNoteEl.textContent = '';
+
   if (!plan) {
-    dayInfoEl.textContent = `${today.toDateString()} (${dayKey}) — no plan defined for this day yet.`;
+    dayInfoEl.textContent = `${today.toDateString()} (${dayKey}) — no plan for this day. Pick a content type above to override.`;
     noPlanEl.style.display = 'block';
     editorEl.style.display = 'none';
     return;
   }
 
-  dayInfoEl.textContent = `${today.toDateString()} — ${plan.label}`;
+  dayInfoEl.textContent = `${today.toDateString()} — ${plan.label}${isOverride ? ' (overridden)' : ''}`;
   if (plan.needsMedia) {
     mediaNoteEl.textContent = MEDIA_NOTES[plan.needsMedia] ?? '';
     mediaNoteEl.style.display = 'block';
   }
+  noPlanEl.style.display = 'none';
   editorEl.style.display = 'block';
+  updateCharCount();
+}
 
+async function init() {
   const existing = await getContentForDate(today);
   if (existing) {
+    contentTypeSelectEl.value = existing.overrideType ?? '';
     draftTextEl.value = existing.text;
     modifierInputEl.value = existing.modifier ?? '';
     renderBadge(existing.state);
   }
-  updateCharCount();
+  refreshPlanDisplay();
 }
 
+contentTypeSelectEl.addEventListener('change', refreshPlanDisplay);
 draftTextEl.addEventListener('input', updateCharCount);
 
 generateBtn.addEventListener('click', async () => {
@@ -88,12 +105,14 @@ generateBtn.addEventListener('click', async () => {
   try {
     const settings = await getSettings();
     const modifier = modifierInputEl.value;
+    const overrideType = contentTypeSelectEl.value || null;
     const result = await generateContent({
       apiKey: settings.claude.apiKey,
       model: settings.claude.model,
       targetPersona: settings.targetPersona,
       date: today,
       modifier,
+      overrideType,
     });
     draftTextEl.value = result.content;
     updateCharCount();
@@ -103,10 +122,16 @@ generateBtn.addEventListener('click', async () => {
       contentType: currentPlan.type,
       text: result.content,
       modifier,
+      overrideType,
     });
     renderBadge(record.state);
     statusEl.textContent = 'Drafted — review and edit as needed, then Approve.';
-    await log('info', 'Content: draft generated', { dayKey: currentDayKey, contentType: currentPlan.type, modifier });
+    await log('info', 'Content: draft generated', {
+      dayKey: currentDayKey,
+      contentType: currentPlan.type,
+      modifier,
+      overrideType,
+    });
   } catch (err) {
     statusEl.textContent = `Failed: ${err.message}`;
     await log('error', 'Content: draft generation failed', { error: err.message });
