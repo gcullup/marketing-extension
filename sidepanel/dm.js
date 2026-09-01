@@ -112,7 +112,18 @@ function renderCard(person, template, now) {
       await markDmSent(person.id, message);
       statusEl.textContent = 'Sent.';
       card.remove();
-      await refreshSummary();
+      // Same fix applied to Send Queue (2026-09-01): disable every other
+      // still-eligible card the moment the daily cap is actually hit, rather
+      // than only reflecting it in the summary text — otherwise clicking
+      // several cards in the same sitting could cross the cap before it was
+      // ever visibly enforced.
+      const remaining = await refreshSummary();
+      if (remaining <= 0) {
+        for (const otherCard of cardsEl.children) {
+          const btn = otherCard.querySelector('.sendBtn');
+          if (btn) btn.disabled = true;
+        }
+      }
     } else if (result.reason?.startsWith('test mode')) {
       statusEl.textContent = `Test Mode: ${result.reason}`;
       sendBtn.disabled = false;

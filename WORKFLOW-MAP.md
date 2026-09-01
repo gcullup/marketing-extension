@@ -12,10 +12,9 @@ Update this file at the end of every working session.
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
   pending. Endpoint 2 (Step 9 — greeting DM) — **proven live end to end 2026-09-01**: acceptance
   detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
-  send are all built and confirmed against real data. Remaining before sign-off: 2.6's daily cap is
-  shown and blocks sending only when it was already reached before the page loaded — clicking
-  several "Send Message" buttons in one sitting isn't stopped mid-session once the cap is crossed
-  (a real, known gap, not yet asked for); and 2.8 formal sign-off.
+  send are all built and confirmed against real data, including a fix for the daily message cap now
+  being enforced live mid-session, not just at page load. Remaining before sign-off: 2.8 formal
+  sign-off.
 
 ---
 
@@ -811,10 +810,19 @@ this timeout at all — a genuinely separate issue, most plausibly still the ori
 theory. **Confirmed live (2026-09-01):** Greg re-tested — types all the way through with the human-like
 pacing, no cutoff, no dropped first character, message sends correctly. Step 9's greeting DM is now
 genuinely live and proven end to end, pacing included.
-- [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
-      default 15) already exists in settings from Phase 0, just not read by anything yet; the
-      approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send
-      action turns out to be (assisted click, matching D6, unless Greg says otherwise).
+- [x] 2.6 Per-message approval gate + low daily cap — the approval gate is Greg reviewing the DM
+      Queue's rendered previews before clicking Send (assisted click, matching D6). The daily cap
+      (`caps.maxMessagesPerDay`, default 15, already existed in settings from Phase 0) is enforced
+      via `countDmSentToday`.
+      **Real gap found and fixed (2026-09-01), per Greg:** the cap only ever updated the summary
+      text/banner — it disabled every card's Send button up front only if the cap was ALREADY hit
+      before the page loaded, but nothing stopped Greg from clicking several different cards' Send
+      buttons in one sitting and sailing past the cap before the banner ever caught up. **Fixed in
+      both Send Queue and DM Queue** (the same latent gap existed in Send Queue's manual per-card
+      click too — only "Process All" was ever re-checking the cap live, since it re-reads `remaining`
+      every loop iteration): the shared `sendThisOne`/per-card send logic now disables every other
+      still-eligible card's Send button the instant a send crosses the cap, not just at page load.
+      Verified the disable-all-remaining-cards logic in a live browser JS sandbox before wiring in.
 - [-] 2.7 Reply detection — not needed; Greg takes over the conversation manually once the greeting
       DM is sent, per the simplified design above.
 - [ ] 2.8 **ENDPOINT 2 SIGNED OFF**

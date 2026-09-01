@@ -348,6 +348,15 @@ Message and send it.
   dropped character, message sends correctly. Step 9's greeting DM, pacing included, is genuinely
   live and proven end to end.
 
+  **Daily cap enforcement fixed the same day, per Greg — applied to both Send Queue and DM Queue.**
+  The cap was only ever reflected in the summary text/banner and in an all-or-nothing check at page
+  load; nothing stopped several different cards' Send buttons being clicked in one sitting and
+  crossing the cap before the banner caught up. Both pages' shared per-card send logic
+  (`sendThisOne` in `send.js`; the equivalent in `dm.js`) now disables every other still-eligible
+  card's button the instant a send crosses the cap. This also closes the gap for Send Queue's
+  "Process All," which already re-checked the cap every loop iteration but relied on the same
+  underlying fix to actually stop a manual click from working around it.
+
 ---
 
 ## Settings schema

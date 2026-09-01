@@ -136,7 +136,20 @@ function renderCard(person, remaining) {
       await markRequested(person.id);
       statusEl.textContent = 'Sent.';
       card.remove();
-      await refreshSummary();
+      // Real gap found live (2026-09-01): this only ever updated the summary
+      // text/banner — nothing stopped a person from clicking several other
+      // cards' Send buttons in the same sitting and sailing past the daily
+      // cap before ever seeing it. Disabling every remaining card here, in
+      // the one shared sendThisOne implementation, closes it for both the
+      // manual button AND Process All (which calls this same function),
+      // rather than fixing only one of the two call sites.
+      const remaining = await refreshSummary();
+      if (remaining <= 0) {
+        for (const otherCard of cardsEl.children) {
+          const btn = otherCard.querySelector('.sendBtn');
+          if (btn) btn.disabled = true;
+        }
+      }
     } else {
       // Not found in the currently-loaded list is the expected failure mode
       // if they were queued a while ago (Facebook's virtualized list moves
