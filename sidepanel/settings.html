@@ -161,18 +161,22 @@
     </div>
 
     <h2>Daily Send Limits</h2>
-    <div class="two-col">
-      <div>
-        <label for="maxRequestsPerDay">Max friend requests per day</label>
-        <p class="hint">Facebook's own soft pending-request ceiling is ~200.</p>
-        <input type="number" id="maxRequestsPerDay" min="0" />
-      </div>
-      <div>
-        <label for="maxMessagesPerDay">Max messages per day</label>
-        <p class="hint">Messaging is the more heavily policed surface — keep this conservative.</p>
-        <input type="number" id="maxMessagesPerDay" min="0" />
-      </div>
+
+    <label>Max friend requests per day</label>
+    <p class="hint">Facebook's own soft pending-request ceiling is ~200. Variable per day of week, same as Daily Scan Limits above — this is what the Send Queue actually enforces, independent of how many were scanned or queued that day.</p>
+    <div class="day-row">
+      <div><label>Sun</label><input type="number" id="send-sun" min="0" /></div>
+      <div><label>Mon</label><input type="number" id="send-mon" min="0" /></div>
+      <div><label>Tue</label><input type="number" id="send-tue" min="0" /></div>
+      <div><label>Wed</label><input type="number" id="send-wed" min="0" /></div>
+      <div><label>Thu</label><input type="number" id="send-thu" min="0" /></div>
+      <div><label>Fri</label><input type="number" id="send-fri" min="0" /></div>
+      <div><label>Sat</label><input type="number" id="send-sat" min="0" /></div>
     </div>
+
+    <label for="maxMessagesPerDay">Max messages per day</label>
+    <p class="hint">Messaging is the more heavily policed surface — keep this conservative. (Not yet wired to anything — Step 9 isn't built.)</p>
+    <input type="number" id="maxMessagesPerDay" min="0" />
 
     <h2>Message Templates</h2>
     <p class="hint">Use <code>{firstName}</code> where the person's first name should appear.</p>

@@ -463,8 +463,9 @@ updated to match, leaving duplicate/conflicting entries. Reconciled below, 2026-
       auto-approve/review/auto-deny sliders, both boundary-inclusive, verified against all cases).
 - [x] 1.7 Daily scan limits (per day of week, `scanLimitsByDay`) — built into `runDiscoveryBatch`.
       Daily *send* caps are covered under 1.9 below, not a separate item — they're the same
-      `caps.maxRequestsPerDay` setting, counted via the ledger's `requestedAt` timestamps rather
-      than an independent counter (see ARCHITECTURE.md's "Scan volume vs. send volume" section).
+      `caps.maxRequestsPerDayByDay` setting (per day of week — see below, made variable 2026-08-31),
+      counted via the ledger's `requestedAt` timestamps rather than an independent counter (see
+      ARCHITECTURE.md's "Scan volume vs. send volume" section).
 - [x] 1.8 Side panel review queue — see the dedicated section above (`sidepanel/review.html`).
 - [x] 1.9 Execution: send the friend request — **Send Queue** built
       (`sidepanel/send.html`/`send.js`), assisted click as decided (D6): every request needs an
@@ -558,6 +559,26 @@ page's state, gated by a confirm dialog naming the exact count about to be delet
 that it's unrecoverable without a prior Settings export.
 **Pending: Greg tries Reset Queue on both pages and confirms the count and post-reset state match
 expectations.**
+
+**Send limit made variable per day of week (2026-08-31), per Greg** — was a single flat
+`caps.maxRequestsPerDay` applied every day; now `caps.maxRequestsPerDayByDay`, a 7-day grid matching
+`scanLimitsByDay`'s pattern in both Settings UI and code. Real migration risk handled deliberately
+this time (unlike an earlier session lesson learned the hard way): `deepMergeDefaults` only
+backfills truly-missing keys, it doesn't know how to reshape an existing one, so a plain schema
+change would have silently discarded Greg's already-configured value. Added `migrateSettings` in
+`lib/store.js`, run before the generic backfill, spreading the old flat value across all seven days
+— verified live against three cases (real old-shape data, already-migrated data left untouched,
+fresh empty install) before wiring in. `send.js` now looks up today's specific value via the same
+day-of-week key pattern already used in `runDiscoveryBatch`.
+
+**Auto-approve behavior verified directly from code, per Greg's question:** confirmed
+`deriveStateFromVerdict('auto-add')` only ever sets ledger state to `queued` — no DOM interaction
+of any kind. Grepped every call site of the real click functions (`sendFriendRequest`,
+`clickProfileAddFriend`) and confirmed both are invoked from exactly one place: the Send Queue's
+own button click handler in `send.js`. No autonomous Add Friend path exists anywhere. Also
+confirmed the `autoSend` Settings checkbox is completely inert — saved and loaded, but never read
+by any actual logic, same as the timing settings turned out to be. Assisted click is the only real
+path today, provably so, not just by design intent.
 
 ---
 

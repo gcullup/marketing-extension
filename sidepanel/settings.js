@@ -35,7 +35,10 @@ function renderForm(s) {
     $(`scan-${day}`).value = s.scanLimitsByDay?.[day] ?? 0;
   }
 
-  $('maxRequestsPerDay').value = s.caps?.maxRequestsPerDay ?? 15;
+  for (const day of DAYS) {
+    $(`send-${day}`).value = s.caps?.maxRequestsPerDayByDay?.[day] ?? 0;
+  }
+
   $('maxMessagesPerDay').value = s.caps?.maxMessagesPerDay ?? 15;
 
   $('introTemplate').value = s.messageTemplates?.intro ?? '';
@@ -63,6 +66,11 @@ function collectFromForm() {
     scanLimitsByDay[day] = toInt($(`scan-${day}`).value, 0);
   }
 
+  const maxRequestsPerDayByDay = {};
+  for (const day of DAYS) {
+    maxRequestsPerDayByDay[day] = toInt($(`send-${day}`).value, 0);
+  }
+
   return {
     targetPersona: $('targetPersona').value.trim(),
     includeKeywords: linesToKeywords($('includeKeywords').value),
@@ -71,7 +79,7 @@ function collectFromForm() {
     rejectFloor: toInt($('rejectFloor').value, 25),
     scanLimitsByDay,
     caps: {
-      maxRequestsPerDay: toInt($('maxRequestsPerDay').value, 15),
+      maxRequestsPerDayByDay,
       maxMessagesPerDay: toInt($('maxMessagesPerDay').value, 15),
     },
     messageTemplates: {

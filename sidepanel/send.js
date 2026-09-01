@@ -147,9 +147,12 @@ function renderCard(person, remaining) {
   return card;
 }
 
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
 async function refreshSummary() {
   const settings = await getSettings();
-  const maxPerDay = settings.caps?.maxRequestsPerDay ?? 0;
+  const todayKey = DAY_KEYS[new Date().getDay()];
+  const maxPerDay = settings.caps?.maxRequestsPerDayByDay?.[todayKey] ?? 0;
   const sentToday = await countRequestedToday();
   const remaining = Math.max(0, maxPerDay - sentToday);
 

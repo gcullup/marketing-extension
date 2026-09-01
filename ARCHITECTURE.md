@@ -173,8 +173,10 @@ Three genuinely distinct numbers — all three now built:
    friend request: auto-added (AI verdict ≥ auto-approve threshold, or an exact-include match) PLUS
    whatever Greg manually approves out of the `needs_review` pile via the review queue
    (`sidepanel/review.html`). This pool has no daily cap of its own — it just accumulates.
-3. **Sent** — friend requests actually released per day, capped by `caps.maxRequestsPerDay`. This
-   drains the queue at a steady daily rate, independent of how many got added to it that same day.
+3. **Sent** — friend requests actually released per day, capped by `caps.maxRequestsPerDayByDay`
+   (per day of week, matching `scanLimitsByDay`'s pattern — made variable 2026-08-31, per Greg; was
+   originally a single flat number for every day). This drains the queue at a steady daily rate,
+   independent of how many got added to it that same day.
    Built as the **Send Queue** (`sidepanel/send.html`/`send.js`) — **assisted click by design**
    (Greg's explicit decision): the extension never sends anything unattended, every request needs
    an explicit click there. The daily count is derived from the ledger's `requestedAt` timestamps
