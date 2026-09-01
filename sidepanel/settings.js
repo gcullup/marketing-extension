@@ -48,6 +48,8 @@ function renderForm(s) {
   $('maxDelaySeconds').value = s.timing?.maxDelaySeconds ?? 1800;
   $('spreadHours').value = s.timing?.spreadHours ?? 8;
 
+  $('staleRequestDays').value = s.staleRequestDays ?? 14;
+
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
 
@@ -91,6 +93,7 @@ function collectFromForm() {
       maxDelaySeconds: toInt($('maxDelaySeconds').value, 1800),
       spreadHours: toInt($('spreadHours').value, 8),
     },
+    staleRequestDays: toInt($('staleRequestDays').value, 14),
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),

@@ -202,6 +202,11 @@
       </div>
     </div>
 
+    <h2>Request Cleanup</h2>
+    <label for="staleRequestDays">Cancel outstanding requests after (days)</label>
+    <p class="hint">A friend request that's still pending after this many days gets cancelled during "Check Accepted Friends," instead of sitting forever.</p>
+    <input type="number" id="staleRequestDays" min="1" />
+
     <h2>Claude API</h2>
     <label for="apiKey">API key</label>
     <p class="hint">Stored only in this browser's local extension storage — never leaves the device except in calls to Anthropic's API.</p>
