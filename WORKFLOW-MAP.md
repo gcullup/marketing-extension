@@ -583,6 +583,11 @@ skipped. Verified the retry/no-retry/never-touches-other-states logic in a live 
 before wiring in. **Pending: Greg runs another batch and confirms previously-stuck rejected people
 (e.g. Steven Enns, Mike Perdue) now get `removed: true` and actually disappear from the list.**
 
+**Confirmed live (2026-09-01):** clean sweep — all 6 rejected people in the retest (including
+previously-stuck Sam Perea, Anthony Pintaro, Andrew Lee, Harris Jones) show `removed: true`, while
+`queued` cache hits (Neil Huck, Tracy Doise Hanks, Gabe Anderson) correctly show no removal attempt
+at all. The retry-on-cache-hit fix works exactly as designed, no side effects on other states.
+
 **Reset Queue built (2026-08-31), per Greg:** after a day of heavy testing, Review Queue (18
 waiting) and Send Queue (9 queued) had accumulated a lot of test-run artifacts with no way to clear
 them. Added `clearByState(state)` to `lib/ledger.js` — deletes matching records from the ledger
