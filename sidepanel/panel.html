@@ -46,6 +46,43 @@
       a {
         font-size: 12px;
       }
+      @keyframes mkt-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #ccc;
+        border-top-color: #1a7a1a;
+        border-radius: 50%;
+        animation: mkt-spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      .progress-wrap {
+        margin-top: 6px;
+        display: none;
+      }
+      .progress-bar-outer {
+        background: #eee;
+        border-radius: 4px;
+        height: 8px;
+        overflow: hidden;
+      }
+      .progress-bar-inner {
+        background: #1a7a1a;
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      .progress-text {
+        font-size: 11px;
+        color: #666;
+        margin-top: 3px;
+      }
     </style>
   </head>
   <body>
@@ -77,7 +114,12 @@
     <div id="ledgerResult"></div>
     <p>
       <button id="runBatchBtn">Run Discovery Batch (screens up to today's scan limit — can take several minutes)</button>
+      <span class="spinner" id="batchSpinner" style="display: none;"></span>
     </p>
+    <div class="progress-wrap" id="batchProgressWrap">
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="batchProgressBar"></div></div>
+      <div class="progress-text" id="batchProgressText"></div>
+    </div>
     <div id="batchResult"></div>
     <p><a href="settings.html" target="_blank">Settings</a></p>
     <script type="module" src="panel.js"></script>

@@ -3,7 +3,7 @@
 **Purpose:** single source of truth for what is built, what is next, and what is still undecided.
 Update this file at the end of every working session.
 
-- **Last updated:** 2026-08-31
+- **Last updated:** 2026-09-01
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
 - **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
@@ -630,6 +630,20 @@ path today, provably so, not just by design intent.
       requests and messages, matching the prior build's own recommended range), but Greg sets the
       real numbers before the first live run.
 
+**Live progress UI added to the side panel (2026-09-01), per Greg:** "Run Discovery Batch" could
+run for several minutes showing nothing but a static, unchanging status line the whole time. Added
+a CSS spinner (shown while the batch runs, hidden on completion) and a real progress bar/text —
+"real" meaning it updates live during the run, not just once at the end. This needed actual new
+plumbing: `background/service-worker.js`'s `runDiscoveryBatch` now calls a fire-and-forget
+`broadcastProgress()` after every candidate, placed in a `finally` block so it fires exactly once
+per iteration regardless of which branch (skip, fresh screen, or error) ran, without duplicating
+the call at each exit point. `panel.js` listens for these `BATCH_PROGRESS` messages and updates the
+bar/text live; the original request/response call is untouched and still returns the final summary
+when the whole batch completes. A `chrome.runtime.sendMessage` with no listener (panel closed)
+rejects harmlessly — swallowed since this is a UI nicety the batch doesn't depend on.
+**Pending: Greg runs a batch and confirms the spinner/progress bar actually animate and update
+live, and disappear correctly when the batch finishes.**
+
 ---
 
 ## Session Log
@@ -638,3 +652,5 @@ path today, provably so, not just by design intent.
 |---|---|---|
 | 2026-08-31 | 0 | Scope confirmed, architecture drafted, workflow map created. No code yet. Flagged Google Drive repo-location risk. |
 | 2026-08-31 | 0 | Moved repo to `C:\dev\marketing-extension`. Reviewed prior build's settings pages (screenshots). Confirmed root cause of old bug: fuzzy-matching false negatives. Resolved D1–D6; redesigned Step 1 into a three-tier fuzzy-keyword + AI pipeline with confidence bands. Added Test Mode as a Phase 0 requirement. Switched session to Sonnet for implementation work. |
+| 2026-08-31 | 1 | Full Step 1 core loop built and proven live end to end: extension skeleton, git/GitHub, `lib/fuzzy.js` (verified against the real bug case), real selectors verified against live Facebook DOM (Add Friend, profile link, mutual-friends pattern, Remove button, list scroll-container discovery), scrape/click/scroll/extract pipeline, `lib/claude.js` (real Anthropic API client with retry), exact-match/fuzzy-exclude/AI tiering, `lib/verdict.js` confidence bands, `lib/ledger.js` (Person Ledger with dedupe), `runDiscoveryBatch` orchestration loop, side panel Review Queue and Send Queue (assisted-click sending with a verified profile-page fallback), and Reset Queue. **First real friend request sent live** (Aaron Bihl). Eight-plus real bugs found and fixed along the way (see inline notes above for detail on each): fuzzy false negatives, candidate-detection false positives from Facebook's own nav bar, extraction picking up list noise instead of profile content, a ledger identity collision on numeric-ID profile URLs, a missing AI-call retry that let one flaky response abort an entire batch, an XSS risk from unsafe `innerHTML` interpolation in the Review Queue, a dedupe check that ran after the expensive scrape instead of before it, and a scoping bug in Add Friend clicking caught before it ever shipped. |
+| 2026-09-01 | 1 | Clarified two settings were completely inert (min/max delay, `autoSend`) by grepping the codebase rather than guessing — deferred a real fix pending an architecture decision (in-process delay vs. `chrome.alarms`). Verified auto-approve only ever changes ledger state, never touches the DOM, and confirmed no autonomous Add Friend path exists anywhere. Made the daily send limit variable per day of week (was flat), with a verified migration so Greg's already-configured value wasn't silently discarded. Added Reset Queue to Review/Send pages. Added a live spinner + progress bar to the side panel's batch runner, fed by a new fire-and-forget progress broadcast from the background loop. |

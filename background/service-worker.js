@@ -34,6 +34,14 @@ function sendToTab(tabId, message) {
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
+// Fire-and-forget progress push to whatever extension page is listening
+// (the side panel). No response expected — if nothing's listening (panel
+// closed), chrome.runtime.sendMessage rejects, which is fine to swallow
+// since this is purely a UI nicety, not something the batch depends on.
+function broadcastProgress(payload) {
+  chrome.runtime.sendMessage({ type: 'BATCH_PROGRESS', ...payload }).catch(() => {});
+}
+
 /**
  * The DECIDE half of the pipeline, for one already-scraped candidate. The
  * content script only scrapes raw text/links (DOING); this is where the
@@ -263,6 +271,12 @@ async function runDiscoveryBatch(tabId) {
       results.push({ name: candidate.name, error: err.message });
       // Not recorded to the ledger, so this candidate is naturally retried
       // on the next batch run rather than being permanently skipped.
+    } finally {
+      // Fires exactly once per iteration regardless of which branch above
+      // ran (skip, success, or error) — a `finally` runs on every path out
+      // of the try block, including `continue`, so this doesn't need to be
+      // duplicated at each exit point.
+      broadcastProgress({ candidatesTried, newlyScreened, dailyLimit, lastName: candidate.name });
     }
   }
 

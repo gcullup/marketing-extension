@@ -170,16 +170,43 @@ viewLedgerBtn.addEventListener('click', async () => {
 
 const runBatchBtn = document.getElementById('runBatchBtn');
 const batchResult = document.getElementById('batchResult');
+const batchSpinner = document.getElementById('batchSpinner');
+const batchProgressWrap = document.getElementById('batchProgressWrap');
+const batchProgressBar = document.getElementById('batchProgressBar');
+const batchProgressText = document.getElementById('batchProgressText');
+
+// Pushed live from background/service-worker.js's runDiscoveryBatch (once
+// per candidate, via a `finally` so it fires regardless of outcome) — the
+// only way to show real progress during a run that can take several
+// minutes, since the original request/response only reports once at the
+// very end.
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== 'BATCH_PROGRESS') return;
+  const { candidatesTried, newlyScreened, dailyLimit, lastName } = message;
+  const pct = dailyLimit > 0 ? Math.min(100, Math.round((newlyScreened / dailyLimit) * 100)) : 0;
+  batchProgressBar.style.width = `${pct}%`;
+  batchProgressText.textContent = `${newlyScreened}/${dailyLimit} screened (${candidatesTried} tried) — last: ${lastName}`;
+});
 
 runBatchBtn.addEventListener('click', async () => {
-  batchResult.textContent =
-    'Running discovery batch — this walks the whole visible list and can take several minutes. Do not close this panel.';
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url?.includes('facebook.com')) {
     batchResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
     return;
   }
+
+  runBatchBtn.disabled = true;
+  batchSpinner.style.display = 'inline-block';
+  batchProgressWrap.style.display = 'block';
+  batchProgressBar.style.width = '0%';
+  batchProgressText.textContent = 'Starting…';
+  batchResult.textContent = '';
+
   chrome.runtime.sendMessage({ type: 'RUN_DISCOVERY_BATCH', tabId: tab.id }, (response) => {
+    runBatchBtn.disabled = false;
+    batchSpinner.style.display = 'none';
+    batchProgressWrap.style.display = 'none';
+
     if (chrome.runtime.lastError) {
       batchResult.textContent = `No response from background: ${chrome.runtime.lastError.message}`;
       return;
