@@ -283,7 +283,7 @@
           sendResponse({ sent: false, reason: err.message });
           return;
         }
-        sendResponse(MKT.act.sendComposedMessage(message.text, message.testMode));
+        sendResponse(await MKT.act.sendComposedMessage(message.text, message.testMode));
       })();
       return true;
     }

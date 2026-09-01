@@ -317,6 +317,19 @@ Message and send it.
   Facebook's real Lexical editor, and the simulated Enter keypress actually sends. Step 9's greeting
   DM is proven, not just built.
 
+  **Pacing added (2026-09-01), per Greg's observation from that test:** the whole message appearing
+  instantly, then the tab closing immediately after, read as an obvious script rather than a person —
+  the same "don't look bot-like" concern already addressed elsewhere (scroll pacing, 8-18s between
+  Process All sends). `sendComposedMessage` now types one character at a time via repeated
+  `execCommand('insertText', ...)` calls with a randomized human-typing cadence (occasional longer
+  pause mixed in), pauses briefly before dispatching Enter, and pauses again for a few seconds after
+  sending before returning — the caller closes the background tab as soon as the response comes back,
+  so the pause has to live here, not in the caller. A type-then-paste hybrid (type up to where
+  `{firstName}` was substituted, then paste the rest) was considered and rejected: the content script
+  only ever receives the already-rendered plain text, so recovering the placeholder's boundary would
+  mean threading extra information through the pipeline just to reintroduce a split that typing the
+  whole message character-by-character avoids needing at all.
+
 ---
 
 ## Settings schema

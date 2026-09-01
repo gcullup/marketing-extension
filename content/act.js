@@ -90,6 +90,10 @@
     return { opened: true };
   };
 
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   // Types the greeting DM into the (Lexical-based, contenteditable) chat
   // composer and sends it. Confirmed live (2026-09-01), from Aaron Bihl's
   // real chat popup: there is no separate Send button in this UI — pressing
@@ -98,26 +102,41 @@
   // setting textContent because Lexical (like most rich-text editors)
   // maintains its own internal state synced off real browser input events —
   // a raw DOM mutation wouldn't update that state and Enter would likely
-  // send nothing or something stale. This is the one action this session
-  // hasn't yet verified end-to-end against the real page (see
-  // ARCHITECTURE.md's "highest-fragility surface" note) — Test Mode
-  // deliberately stops one step short of every other action's Test Mode: it
-  // still types the real text (safe — nothing is sent), just skips the
-  // Enter dispatch, so the hardest-to-predict half (does insertText actually
-  // work against Facebook's real editor) can be verified with zero risk of
-  // an accidental real send.
-  MKT.act.sendComposedMessage = function (text, testMode) {
+  // send nothing or something stale. Confirmed live (2026-09-01) this
+  // reconciles correctly against the real editor and the simulated Enter
+  // actually sends.
+  //
+  // Typed one character at a time with a randomized human-typing cadence
+  // (occasional longer pause thrown in), per Greg's observation (2026-09-01)
+  // that the whole message appearing at once read as an obvious script, not
+  // a person typing — same "don't look bot-like" reasoning already applied
+  // to profile scrolling in content.js. A brief pause before Enter, and
+  // another few seconds after it's sent before returning, replace what was
+  // previously an instant type-send-close sequence — the caller
+  // (sidepanel/dm.js's sendGreetingDm) closes the background tab as soon as
+  // this response comes back, so the pause belongs here, not in the caller.
+  MKT.act.sendComposedMessage = async function (text, testMode) {
     const composer = document.querySelector(MKT.selectors.messageComposerInput);
     if (!composer) return { sent: false, reason: 'message composer not found' };
     composer.focus();
-    const inserted = document.execCommand('insertText', false, text);
-    if (!inserted) return { sent: false, reason: 'insertText command failed' };
+
+    for (const char of text) {
+      const inserted = document.execCommand('insertText', false, char);
+      if (!inserted) return { sent: false, reason: 'insertText command failed' };
+      const isPause = Math.random() < 0.12;
+      await delay(isPause ? 150 + Math.random() * 250 : 35 + Math.random() * 90);
+    }
+
     if (testMode) {
+      await delay(3000 + Math.random() * 2000);
       return { sent: false, reason: 'test mode — typed but not sent (check the popup, then send or clear it yourself)' };
     }
+
+    await delay(400 + Math.random() * 500); // a beat before hitting Enter, like reviewing what was just typed
     const enterOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
     composer.dispatchEvent(new KeyboardEvent('keydown', enterOpts));
     composer.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
+    await delay(3000 + Math.random() * 2000); // stay on the message a few seconds rather than closing instantly
     return { sent: true };
   };
 })();

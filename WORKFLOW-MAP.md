@@ -762,6 +762,20 @@ actually submits the message. **Step 9's greeting DM is now proven end to end, n
 cohort query, template rendering, composer automation, and the actual send all confirmed against
 real data. `dmDelayDays` should be set back to a real value (2, or whatever Greg prefers) after
 testing.
+
+**Real-world wrinkle found and fixed the same day, per Greg:** the whole message appeared instantly
+(one `execCommand` call for the entire string) and the background tab closed immediately after
+sending — both read as an obvious script, not a person typing. Fixed: `sendComposedMessage` now
+types character-by-character with a randomized human-typing cadence (occasional longer pause,
+matching the existing scroll-pacing pattern), pauses briefly before dispatching Enter, and pauses a
+few more seconds after sending before returning (the tab closes as soon as the response comes back,
+so the pause lives in the content script, not the caller). Considered and rejected a type-then-paste
+hybrid (type up to where `{firstName}` was substituted, then paste the rest) — the content script
+only receives the already-rendered plain text, so recovering that boundary would need extra
+plumbing that typing the whole message character-by-character makes unnecessary. Verified the
+character-by-character insertion mechanics (cursor advances correctly across awaited iterations,
+final text is correct) in a live browser JS sandbox before wiring in. **Pending: Greg re-tests a real
+send and confirms it now looks paced rather than instant.**
 - [ ] 2.6 Per-message approval gate + low daily cap — the daily cap (`caps.maxMessagesPerDay`,
       default 15) already exists in settings from Phase 0, just not read by anything yet; the
       approval gate is Greg reviewing the DM Queue's rendered previews before whatever the send
