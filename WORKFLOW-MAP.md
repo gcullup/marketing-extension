@@ -661,6 +661,17 @@ kept as real `<a>` elements rather than converted to `<button>` + `window.open()
 link semantics (right-click "open in new tab," keyboard accessibility). `panel.js` needed zero
 changes — both elements are still looked up by the same IDs, just moved and reclassed.
 
+**Live queue counts fixed (2026-09-01), per Greg:** approving people in Review Queue (a separate
+tab) never updated the panel's "Send Queue (N queued)" count, since it was only ever computed once
+when the panel first opened — confirmed directly from the code before fixing. Refactored the count
+logic into `refreshQueueCounts()` and wired a `chrome.storage.onChanged` listener watching the
+`mkt_ledger` key specifically (confirmed the exact key name against `lib/ledger.js` rather than
+assume it), which fires for a ledger write from *any* extension page/tab — so the panel now stays
+live regardless of where the change actually happened. No new permission needed (already covered
+by the existing `storage` permission). Same technique could extend to live-updating Review/Send
+Queue's own lists if a Discovery Batch runs while one is open — not built, just noted as an
+available option if it comes up.
+
 ---
 
 ## Session Log

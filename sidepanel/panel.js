@@ -8,6 +8,27 @@ const pingResult = document.getElementById('pingResult');
 const reviewQueueLink = document.getElementById('reviewQueueLink');
 const sendQueueLink = document.getElementById('sendQueueLink');
 
+async function refreshQueueCounts() {
+  const people = await getAllPeople();
+  const pendingCount = people.filter((p) => p.state === 'needs_review').length;
+  reviewQueueLink.textContent = pendingCount ? `Review Queue (${pendingCount} waiting)` : 'Review Queue';
+
+  const queuedCount = people.filter((p) => p.state === 'queued').length;
+  sendQueueLink.textContent = queuedCount ? `Send Queue (${queuedCount} queued)` : 'Send Queue';
+}
+
+// The side panel stays open in the background while Review/Send Queue open
+// in separate tabs — confirmed live (2026-09-01) that approving someone in
+// Review Queue never updated the panel's count, since it was only ever
+// computed once at open time. chrome.storage.onChanged fires for a write
+// from ANY extension page, so this keeps the counts live regardless of
+// where the ledger actually changed.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && changes.mkt_ledger) {
+    refreshQueueCounts();
+  }
+});
+
 async function init() {
   try {
     const settings = await getSettings();
@@ -17,12 +38,7 @@ async function init() {
     statusEl.textContent = `Storage error: ${err.message}`;
   }
 
-  const people = await getAllPeople();
-  const pendingCount = people.filter((p) => p.state === 'needs_review').length;
-  reviewQueueLink.textContent = pendingCount ? `Review Queue (${pendingCount} waiting)` : 'Review Queue';
-
-  const queuedCount = people.filter((p) => p.state === 'queued').length;
-  sendQueueLink.textContent = queuedCount ? `Send Queue (${queuedCount} queued)` : 'Send Queue';
+  await refreshQueueCounts();
 }
 
 pingBtn.addEventListener('click', async () => {
