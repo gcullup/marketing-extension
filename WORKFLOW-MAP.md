@@ -735,8 +735,19 @@ before starting the batch — same "just handle it" instinct as the Send Queue's
 suggestions tab" link and the DM/friend-request profile-page fallbacks, taken one step further since
 here the fix could remove the manual step entirely rather than just making it one click. Verified the
 skip-navigation-if-already-there and navigate-and-wait paths in a live browser JS sandbox before
-wiring in. **Pending: Greg confirms Run Discovery Batch now works when clicked from any Facebook
-page, not just the suggestions page.**
+wiring in. **Confirmed live (2026-09-01):** Greg's next run auto-navigated correctly.
+
+**First real post-rebuild batch run, confirmed live (2026-09-01):** Greg ran a real batch (limit 50)
+and stopped it partway through — 12 candidates tried, 8 newly screened, 4 free cache-hit skips
+correctly excluded from that count. Real AI confidences (92/72/25/95/88/72/72) correctly mapped to
+auto-add/review/reject, a fresh reject correctly showed `removed: true`. **The Stop button worked**,
+returning a clean `BATCH_COMPLETE` with `stoppedReason: "user_stopped"` instead of hanging or
+erroring. This is the first real evidence the alarms-driven rebuild works across multiple steps
+without dying — the old code's confirmed failure mode was silently dying partway through a run
+just like this one. **Still pending:** a run that completes the full daily limit (this one was
+stopped early, not run to completion or list-exhaustion), and ideally a genuine forced
+service-worker kill mid-run to prove the actual resumption behavior the rebuild exists for (stopping
+via the Stop button proves clean shutdown, not recovery from an abrupt kill).
 
 ---
 
