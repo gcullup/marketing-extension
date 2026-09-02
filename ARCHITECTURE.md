@@ -109,6 +109,10 @@ More targeted than the existing `clearByState` ("Reset Queue"), which only ever 
 in one state at once. "Select all" is scoped to the currently filtered/visible rows only, so
 switching filters can't silently select something never actually seen.
 
+Same interface built for the content ledger: `sidepanel/contentLedger.html`/`contentLedger.js`
+("Manage Content Ledger"), backed by new `lib/contentLedger.js` functions `getAllContent()` and
+`deleteContent(dateKeys)` — the content ledger had no delete capability at all before this.
+
 ---
 
 ## Step 1 pipeline: discovery and screening

@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Content Ledger — TNG Marketing Extension</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 16px;
+        max-width: 900px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      #count {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 12px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .controls input[type='text'] {
+        font-size: 13px;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        min-width: 200px;
+      }
+      .controls select {
+        font-size: 13px;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        padding: 6px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        background: #fff;
+        color: #333;
+      }
+      button:disabled {
+        color: #999;
+        cursor: not-allowed;
+      }
+      #deleteBtn {
+        background: #fff;
+        color: #a33;
+        border-color: #d99;
+      }
+      #deleteBtn:disabled {
+        color: #ccc;
+        border-color: #eee;
+      }
+      #empty {
+        font-size: 14px;
+        color: #666;
+        padding: 24px;
+        text-align: center;
+        background: #f7f8fa;
+        border-radius: 8px;
+        display: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+        vertical-align: top;
+      }
+      th {
+        color: #666;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      td.preview {
+        color: #333;
+        max-width: 320px;
+      }
+      .state-badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .state-draft {
+        background: #fff6e5;
+        color: #8a5300;
+      }
+      .state-approved {
+        background: #e6f4ea;
+        color: #1a7a1a;
+      }
+      #status {
+        font-size: 12px;
+        color: #666;
+        font-style: italic;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Content Ledger</h1>
+    <div id="count">Loading…</div>
+
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Search post text…" />
+      <select id="stateFilter">
+        <option value="">All states</option>
+        <option value="draft">Draft</option>
+        <option value="approved">Approved</option>
+      </select>
+      <select id="typeFilter">
+        <option value="">All types</option>
+        <option value="short-form">Short-form</option>
+        <option value="long-form">Long-form</option>
+        <option value="engagement">Engagement</option>
+      </select>
+      <button id="refreshBtn">Refresh</button>
+      <button id="deleteBtn" disabled>Delete Selected (0)</button>
+    </div>
+
+    <div id="empty">No content drafted yet.</div>
+    <table id="table" style="display: none;">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="selectAllCheckbox" /></th>
+          <th>Date</th>
+          <th>Day</th>
+          <th>Type</th>
+          <th>State</th>
+          <th>Preview</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="status"></div>
+
+    <script type="module" src="contentLedger.js"></script>
+  </body>
+</html>

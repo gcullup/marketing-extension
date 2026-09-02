@@ -1307,6 +1307,17 @@ Verified the filter/select-all interaction (selecting within a filtered view doe
 before wiring in. **Pending: Greg tries it live and confirms selecting and deleting specific records
 works as expected.**
 
+**Content Ledger manager built (2026-09-01), per Greg:** same checkbox-based delete interface,
+now for Step 3's content ledger, which had no delete capability at all before this. Built as
+`sidepanel/contentLedger.html`/`contentLedger.js` ("Manage Content Ledger," linked from the main
+panel next to Manage Ledger) — a table of every date's content record (date, day, content type,
+state, a truncated text preview) with a checkbox per row, a text search over the post content, state
+and content-type filters, a filter-scoped "select all," and a "Delete Selected (N)" button gated by
+a confirm dialog — same shape as the Person Ledger manager, including the same "select all only acts
+on visible rows" reasoning. New `lib/contentLedger.js` functions: `getAllContent()` (every record,
+newest-first) and `deleteContent(dateKeys)` (deletes specific dates entirely). **Pending: Greg tries
+it live.**
+
 ---
 
 ## Session Log
