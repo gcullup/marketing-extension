@@ -721,6 +721,23 @@ run it outside a real browser.** What Greg should verify next time he's at the m
 7. Reload the unpacked extension while a batch is mid-run and confirm it self-heals (either
    automatically, or by clicking "Run Discovery Batch" again) rather than being stranded forever.
 
+**Merged to `main` (2026-09-01)** after Greg reviewed the summary and gave the go-ahead — read
+through the diff directly (braces/parens balance-checked; no Node on this machine for a real parse
+check) before merging, same discipline as every other change this session.
+
+**Real bug found on the very first live test, per Greg:** clicked "Run Discovery Batch" from
+Facebook's main feed, not the suggestions page — the old check only required "any facebook.com tab,"
+not specifically the suggestions page, so it silently ran a real batch against the wrong page, found
+zero candidates, and correctly (if confusingly) reported `list_exhausted` almost instantly. **Fixed:**
+the button now navigates the active tab to `facebook.com/friends/suggestions` itself if it isn't
+already there (`ensureOnSuggestionsPage` in `panel.js`), waiting for the page to load and settle
+before starting the batch — same "just handle it" instinct as the Send Queue's clickable "open a
+suggestions tab" link and the DM/friend-request profile-page fallbacks, taken one step further since
+here the fix could remove the manual step entirely rather than just making it one click. Verified the
+skip-navigation-if-already-there and navigate-and-wait paths in a live browser JS sandbox before
+wiring in. **Pending: Greg confirms Run Discovery Batch now works when clicked from any Facebook
+page, not just the suggestions page.**
+
 ---
 
 ## Phase 2 — ENDPOINT 2: Step 9, Initial Greeting DM

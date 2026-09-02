@@ -242,16 +242,65 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
+const SUGGESTIONS_URL = 'https://www.facebook.com/friends/suggestions';
+
+// Real gap found live (2026-09-01): the old check only required "any
+// facebook.com tab," not specifically the suggestions page — clicking this
+// from, say, the main feed silently ran a real batch against the wrong page,
+// which correctly (if confusingly) found zero candidates and immediately
+// reported list_exhausted. Rather than just telling the user to go there
+// themselves, navigate the active tab there directly — the same "just
+// handle it" instinct already applied to Send Queue's "open a suggestions
+// tab" link and the DM/friend-request profile-page fallbacks.
+function ensureOnSuggestionsPage(tab) {
+  if (tab.url && tab.url.startsWith(SUGGESTIONS_URL)) return Promise.resolve(tab);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeoutHandle;
+
+    function finish(result, err) {
+      if (settled) return;
+      settled = true;
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      clearTimeout(timeoutHandle);
+      if (err) reject(err);
+      else resolve(result);
+    }
+
+    function onUpdated(updatedTabId, changeInfo, updatedTab) {
+      if (updatedTabId !== tab.id || changeInfo.status !== 'complete') return;
+      // Let the SPA content itself render before handing back, same
+      // reasoning as the profile-page fallbacks elsewhere in this project.
+      setTimeout(() => finish(updatedTab), 1500);
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+
+    timeoutHandle = setTimeout(() => finish(null, new Error('timed out loading the suggestions page')), 15000);
+    chrome.tabs.update(tab.id, { url: SUGGESTIONS_URL });
+  });
+}
+
 runBatchBtn.addEventListener('click', async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url?.includes('facebook.com')) {
-    batchResult.textContent = 'Active tab is not facebook.com — open a Facebook tab first.';
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) {
+    batchResult.textContent = 'No active tab found.';
     return;
   }
 
   batchResult.textContent = '';
   setBatchRunningUi(true);
   batchProgressBar.style.width = '0%';
+  batchProgressText.textContent = 'Opening the suggestions page…';
+
+  try {
+    tab = await ensureOnSuggestionsPage(tab);
+  } catch (err) {
+    setBatchRunningUi(false);
+    batchResult.textContent = `Couldn't open the suggestions page: ${err.message}`;
+    return;
+  }
+
   batchProgressText.textContent = 'Starting…';
 
   chrome.runtime.sendMessage({ type: 'RUN_DISCOVERY_BATCH', tabId: tab.id }, (response) => {
