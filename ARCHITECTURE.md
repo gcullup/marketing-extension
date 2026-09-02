@@ -348,6 +348,19 @@ Message and send it.
   dropped character, message sends correctly. Step 9's greeting DM, pacing included, is genuinely
   live and proven end to end.
 
+  **Background-tab focus bug found during a full live-usage day, per Greg.** DM sends silently
+  failed unless Greg manually switched his browser's focus to the opened profile tab — worked when
+  he happened to be looking at it, failed otherwise. The tab was opened in the background
+  (`active: false`), same as every other profile-tab action in this project (Add Friend, Cancel
+  Request, checking friend status) — but those only ever call a plain `element.click()`, which
+  doesn't require its tab to be focused. The DM composer is different: `document.execCommand
+  ('insertText', ...)` and a dispatched keyboard Enter (what actually types and sends) apparently
+  only take effect when the tab genuinely has focus. Fixed by opening the tab `active: true` for the
+  duration of the send, then switching focus back to whatever tab was active beforehand once done —
+  a real, visible UX cost (the browser jumps to the DM tab for the several seconds a send takes),
+  judged worth it since the send needs to actually work. Send Queue's and Check Accepted Friends'
+  background-tab flows are unaffected, since they only ever use plain clicks.
+
   **Daily cap enforcement fixed the same day, per Greg — applied to both Send Queue and DM Queue.**
   The cap was only ever reflected in the summary text/banner and in an all-or-nothing check at page
   load; nothing stopped several different cards' Send buttons being clicked in one sitting and

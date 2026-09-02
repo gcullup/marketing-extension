@@ -20,55 +20,71 @@ function daysSince(timestampMs, now) {
   return Math.floor((now - timestampMs) / (24 * 60 * 60 * 1000));
 }
 
-// Opens the person's real profile in a background tab, sends SEND_DM (which
-// clicks Message, waits for the chat popup, types the rendered text, and —
-// unless Test Mode — presses Enter to actually send), then cleans up the
-// tab either way. Mirrors send.js's sendViaProfilePage pattern exactly,
-// since this is the same shape of on-demand per-person action.
+// Opens the person's real profile, sends SEND_DM (which clicks Message,
+// waits for the chat popup, types the rendered text, and — unless Test Mode
+// — presses Enter to actually send), then cleans up the tab either way.
+// Mostly mirrors send.js's sendViaProfilePage, with one deliberate
+// difference: this tab is opened ACTIVE (foreground), not background.
+//
+// Real bug found live (2026-09-01), per Greg: with the tab in the
+// background (as every other profile-tab action in this project safely is —
+// Add Friend, Cancel Request, checking friend status), typing silently
+// failed unless Greg manually switched to the tab himself. Root cause:
+// plain element.click() (what every other background-tab action uses)
+// doesn't care whether the tab is actually focused, but
+// document.execCommand('insertText', ...) and a dispatched keyboard Enter
+// (what sendComposedMessage uses to actually type/send) apparently do —
+// Chrome only applies them for real when the tab genuinely has focus, not
+// just "is the active tab of its own position in a background window."
+// Bringing the tab to the foreground for the duration of the send, then
+// switching back to whatever Greg was doing right after, is the fix.
 function sendGreetingDm(person, text, testMode) {
   return new Promise((resolve) => {
-    chrome.tabs.create({ url: person.profileUrl, active: false }, (tab) => {
-      const tabId = tab.id;
-      let settled = false;
-      let timeoutHandle;
+    chrome.tabs.query({ active: true, currentWindow: true }, ([previousTab]) => {
+      chrome.tabs.create({ url: person.profileUrl, active: true }, (tab) => {
+        const tabId = tab.id;
+        let settled = false;
+        let timeoutHandle;
 
-      function finish(result) {
-        if (settled) return;
-        settled = true;
-        chrome.tabs.onUpdated.removeListener(onUpdated);
-        clearTimeout(timeoutHandle);
-        chrome.tabs.remove(tabId).catch(() => {});
-        resolve(result);
-      }
+        function finish(result) {
+          if (settled) return;
+          settled = true;
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          clearTimeout(timeoutHandle);
+          chrome.tabs.remove(tabId).catch(() => {});
+          if (previousTab) chrome.tabs.update(previousTab.id, { active: true }).catch(() => {});
+          resolve(result);
+        }
 
-      function onUpdated(updatedTabId, changeInfo) {
-        if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tabId, { type: 'SEND_DM', text, testMode }, (response) => {
-            finish(chrome.runtime.lastError ? { sent: false, reason: chrome.runtime.lastError.message } : response);
-          });
-        }, 1500);
-      }
-      chrome.tabs.onUpdated.addListener(onUpdated);
+        function onUpdated(updatedTabId, changeInfo) {
+          if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tabId, { type: 'SEND_DM', text, testMode }, (response) => {
+              finish(chrome.runtime.lastError ? { sent: false, reason: chrome.runtime.lastError.message } : response);
+            });
+          }, 1500);
+        }
+        chrome.tabs.onUpdated.addListener(onUpdated);
 
-      // Real bug found live (2026-09-01): this single deadline covers the
-      // WHOLE round trip (page load, opening the composer, and — since
-      // sendComposedMessage now types character-by-character with a
-      // human-like pace rather than instantly — the actual typing itself),
-      // not just page load despite the old fixed 15s value and message
-      // implying otherwise. That fixed 15s was sized for the original
-      // instant-paste flow; it started firing mid-typing and force-closing
-      // the tab the moment real pacing was added, misreported as "timed out
-      // loading their profile page" when the page had loaded fine. Scaled to
-      // the actual message length now, with a generous per-character
-      // allowance (well above the real ~35-400ms/char pace) plus a fixed
-      // buffer for page load, opening the composer, and the pre/post-send
-      // pauses in sendComposedMessage.
-      const timeoutMs = 20000 + text.length * 200;
-      timeoutHandle = setTimeout(
-        () => finish({ sent: false, reason: 'timed out — no response from their profile page within the expected time' }),
-        timeoutMs
-      );
+        // Real bug found live (2026-09-01): this single deadline covers the
+        // WHOLE round trip (page load, opening the composer, and — since
+        // sendComposedMessage now types character-by-character with a
+        // human-like pace rather than instantly — the actual typing itself),
+        // not just page load despite the old fixed 15s value and message
+        // implying otherwise. That fixed 15s was sized for the original
+        // instant-paste flow; it started firing mid-typing and force-closing
+        // the tab the moment real pacing was added, misreported as "timed out
+        // loading their profile page" when the page had loaded fine. Scaled to
+        // the actual message length now, with a generous per-character
+        // allowance (well above the real ~35-400ms/char pace) plus a fixed
+        // buffer for page load, opening the composer, and the pre/post-send
+        // pauses in sendComposedMessage.
+        const timeoutMs = 20000 + text.length * 200;
+        timeoutHandle = setTimeout(
+          () => finish({ sent: false, reason: 'timed out — no response from their profile page within the expected time' }),
+          timeoutMs
+        );
+      });
     });
   });
 }

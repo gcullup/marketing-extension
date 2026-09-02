@@ -942,6 +942,23 @@ this timeout at all — a genuinely separate issue, most plausibly still the ori
 theory. **Confirmed live (2026-09-01):** Greg re-tested — types all the way through with the human-like
 pacing, no cutoff, no dropped first character, message sends correctly. Step 9's greeting DM is now
 genuinely live and proven end to end, pacing included.
+
+**Real bug found during a full live-usage day, per Greg (2026-09-01):** DM sends silently failed
+unless Greg manually switched his browser's focus to the opened profile tab — worked every time he
+happened to look at it, failed every time he didn't. **Root cause:** the tab was opened in the
+background (`active: false`, same as every other profile-tab action in this project — Add Friend,
+Cancel Request, checking friend status). Those other actions only ever call a plain `element.click()`,
+which doesn't care whether its tab is actually focused. The DM composer is different: it types via
+`document.execCommand('insertText', ...)` and sends via a dispatched keyboard Enter — both apparently
+only take real effect when the tab genuinely has focus, not just "is active within its own
+background window." **Fixed:** `sidepanel/dm.js`'s `sendGreetingDm` now opens the profile tab
+`active: true` (bringing it to the foreground for the duration of the send) and switches focus back
+to whatever tab was active beforehand once it's done — so Greg's browsing view snaps back
+automatically rather than being left on the now-closing DM tab. This is a real, visible UX cost (the
+browser will jump to the DM tab for the several seconds a send takes) but was necessary for the send
+to actually work reliably. Send Queue's and Check Accepted Friends' background-tab flows are
+unaffected — they only ever use plain clicks, which this investigation confirmed don't need focus.
+**Pending: Greg confirms DM sends now work without needing to manually focus the tab.**
 - [x] 2.6 Per-message approval gate + low daily cap — the approval gate is Greg reviewing the DM
       Queue's rendered previews before clicking Send (assisted click, matching D6). The daily cap
       (`caps.maxMessagesPerDay`, default 15, already existed in settings from Phase 0) is enforced
