@@ -24,6 +24,8 @@ const copyBtn = document.getElementById('copyBtn');
 const approveBtn = document.getElementById('approveBtn');
 const statusEl = document.getElementById('status');
 const stateBadgeEl = document.getElementById('stateBadge');
+const postPersonalBtn = document.getElementById('postPersonalBtn');
+const postStatusEl = document.getElementById('postStatus');
 
 const today = new Date();
 let currentPlan = null;
@@ -193,6 +195,87 @@ approveBtn.addEventListener('click', async () => {
     await log('info', 'Content: draft approved', { dayKey: record.dayKey });
   } catch (err) {
     statusEl.textContent = `Failed: ${err.message}`;
+  }
+});
+
+const FACEBOOK_HOME_URL = 'https://www.facebook.com/me';
+
+// Mirrors panel.js's ensureOnSuggestionsPage pattern (built for Discovery
+// Batch, 2026-09-01): makes sure the active tab is somewhere the "What's on
+// your mind?" composer trigger actually exists before trying to click it —
+// own profile and the home feed both have it; the "/me" path reliably
+// redirects to the logged-in user's own profile, which this always targets
+// specifically (rather than "any facebook.com page," which could be
+// somewhere without the trigger at all, e.g. still on
+// friends/suggestions). Per Greg's design (2026-09-01), 3A is assisted —
+// Greg needs to end up looking at the open composer to finish posting
+// himself, so this operates on the ACTIVE tab directly rather than a
+// background tab that would then need focus restored afterward (the lesson
+// from the DM Queue focus bug).
+function ensureOnFacebookHome(tab) {
+  if (tab.url && tab.url.startsWith(FACEBOOK_HOME_URL)) return Promise.resolve(tab);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeoutHandle;
+
+    function finish(result, err) {
+      if (settled) return;
+      settled = true;
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      clearTimeout(timeoutHandle);
+      if (err) reject(err);
+      else resolve(result);
+    }
+
+    function onUpdated(updatedTabId, changeInfo, updatedTab) {
+      if (updatedTabId !== tab.id || changeInfo.status !== 'complete') return;
+      setTimeout(() => finish(updatedTab), 1500); // let the SPA content itself render
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+
+    timeoutHandle = setTimeout(() => finish(null, new Error('timed out loading Facebook')), 15000);
+    chrome.tabs.update(tab.id, { url: FACEBOOK_HOME_URL });
+  });
+}
+
+// 3A — post to personal page, per Greg's design (2026-09-01): assisted, not
+// automatic. Requires the draft to actually be Approved first (D6's review
+// gate) — re-checks the ledger directly rather than trusting whatever's
+// currently in the box, so this can't post something that was never
+// reviewed.
+postPersonalBtn.addEventListener('click', async () => {
+  const existing = await getContentForDate(today);
+  if (!existing || existing.state !== CONTENT_STATES.APPROVED) {
+    postStatusEl.textContent = 'Approve the draft first — this only works on approved content.';
+    return;
+  }
+
+  postPersonalBtn.disabled = true;
+  postStatusEl.textContent = 'Opening your profile…';
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+      postStatusEl.textContent = 'No active tab found.';
+      return;
+    }
+    const readyTab = await ensureOnFacebookHome(tab);
+
+    postStatusEl.textContent = 'Opening the composer and typing…';
+    const result = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(readyTab.id, { type: 'DRAFT_FEED_POST', text: existing.text }, (response) => {
+        resolve(chrome.runtime.lastError ? { typed: false, reason: chrome.runtime.lastError.message } : response);
+      });
+    });
+
+    postStatusEl.textContent = result.typed
+      ? 'Typed into the composer — review it, then click Post yourself on Facebook.'
+      : `Failed: ${result.reason ?? 'unknown reason'}`;
+    await log('info', 'Content: 3A post-to-personal-page attempt', { dayKey: existing.dayKey, result });
+  } catch (err) {
+    postStatusEl.textContent = `Failed: ${err.message}`;
+  } finally {
+    postPersonalBtn.disabled = false;
   }
 });
 

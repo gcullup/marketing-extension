@@ -65,19 +65,23 @@
     });
   }
 
-  // Polls for the chat popup's composer to actually be in the DOM after
-  // clicking Message, rather than a fixed guess — the popup's open animation
-  // takes a moment, same reasoning as waitForProfileUrl above.
-  function waitForComposer(timeoutMs = 5000) {
+  // Polls for a selector to actually be in the DOM rather than a fixed
+  // guess — used after clicking something that opens a popup/modal whose
+  // open animation takes a moment (the Messenger chat popup, and — added
+  // 2026-09-01 — the create-post modal), same reasoning as waitForProfileUrl
+  // above. Generalized from a message-composer-specific version so both
+  // callers share one polling implementation instead of two near-identical
+  // copies.
+  function waitForElement(selector, description, timeoutMs = 5000) {
     return new Promise((resolve, reject) => {
       const startedAt = Date.now();
       const poll = setInterval(() => {
-        if (document.querySelector(MKT.selectors.messageComposerInput)) {
+        if (document.querySelector(selector)) {
           clearInterval(poll);
           resolve();
         } else if (Date.now() - startedAt > timeoutMs) {
           clearInterval(poll);
-          reject(new Error('timed out waiting for the message composer to open'));
+          reject(new Error(`timed out waiting for ${description}`));
         }
       }, 250);
     });
@@ -278,12 +282,37 @@
           return;
         }
         try {
-          await waitForComposer();
+          await waitForElement(MKT.selectors.messageComposerInput, 'the message composer to open');
         } catch (err) {
           sendResponse({ sent: false, reason: err.message });
           return;
         }
         sendResponse(await MKT.act.sendComposedMessage(message.text, message.testMode));
+      })();
+      return true;
+    }
+    if (message?.type === 'DRAFT_FEED_POST') {
+      // Step 3's 3A (post to personal page) — assisted, per Greg's explicit
+      // design (2026-09-01): opens the create-post popup and types the
+      // approved draft in, then stops. Greg reviews (attaches a photo,
+      // picks a background, etc.) and clicks Facebook's own Post button
+      // himself — this handler never does. Caller (sidepanel/content.js) is
+      // responsible for making sure this tab is actually on a Facebook page
+      // where the trigger exists (own profile or home feed) before sending
+      // this message.
+      (async () => {
+        const openResult = MKT.act.clickPostComposerTrigger();
+        if (!openResult.opened) {
+          sendResponse({ typed: false, reason: openResult.reason });
+          return;
+        }
+        try {
+          await waitForElement(MKT.selectors.postComposerInput, 'the post composer to open');
+        } catch (err) {
+          sendResponse({ typed: false, reason: err.message });
+          return;
+        }
+        sendResponse(await MKT.act.typePostDraft(message.text));
       })();
       return true;
     }

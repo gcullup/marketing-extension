@@ -94,37 +94,27 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // Types the greeting DM into the (Lexical-based, contenteditable) chat
-  // composer and sends it. Confirmed live (2026-09-01), from Aaron Bihl's
-  // real chat popup: there is no separate Send button in this UI — pressing
-  // Enter is the only way to send, so that's simulated here rather than
-  // clicked. `execCommand('insertText', ...)` is used instead of directly
-  // setting textContent because Lexical (like most rich-text editors)
-  // maintains its own internal state synced off real browser input events —
-  // a raw DOM mutation wouldn't update that state and Enter would likely
-  // send nothing or something stale. Confirmed live (2026-09-01) this
-  // reconciles correctly against the real editor and the simulated Enter
-  // actually sends.
+  // Shared by every Lexical-composer typing action (the DM composer, and —
+  // added 2026-09-01 — the personal-page post composer, confirmed to be
+  // Lexical too via the identical data-lexical-editor="true" marker).
+  // `execCommand('insertText', ...)` is used instead of directly setting
+  // textContent because Lexical (like most rich-text editors) maintains its
+  // own internal state synced off real browser input events — a raw DOM
+  // mutation wouldn't update that state. Typed one character at a time with
+  // a randomized human-typing cadence (occasional longer pause thrown in),
+  // per Greg's observation (2026-09-01) that the whole message appearing at
+  // once read as an obvious script — same "don't look bot-like" reasoning
+  // already applied to profile scrolling in content.js.
   //
-  // Typed one character at a time with a randomized human-typing cadence
-  // (occasional longer pause thrown in), per Greg's observation (2026-09-01)
-  // that the whole message appearing at once read as an obvious script, not
-  // a person typing — same "don't look bot-like" reasoning already applied
-  // to profile scrolling in content.js. A brief pause before Enter, and
-  // another few seconds after it's sent before returning, replace what was
-  // previously an instant type-send-close sequence — the caller
-  // (sidepanel/dm.js's sendGreetingDm) closes the background tab as soon as
-  // this response comes back, so the pause belongs here, not in the caller.
-  MKT.act.sendComposedMessage = async function (text, testMode) {
-    const composer = document.querySelector(MKT.selectors.messageComposerInput);
-    if (!composer) return { sent: false, reason: 'message composer not found' };
-
-    // Real bug found live (2026-09-01): the first character was silently
-    // dropped, most likely because Lexical's own focus-time setup (it
-    // manages its own selection state on top of the native DOM) hadn't
-    // finished in the same tick as our .focus() call. Give it a moment to
-    // actually settle before typing starts, with one retry if it somehow
-    // still isn't the focused element.
+  // Real bug found live (2026-09-01) fixed here, benefiting every caller:
+  // the first character was silently dropped, most likely because Lexical's
+  // own focus-time setup hadn't finished in the same tick as our .focus()
+  // call — fixed with a settle delay and one refocus retry before typing
+  // starts, plus re-asserting focus before every character as insurance
+  // against losing it mid-typing (a second real bug found the same test
+  // run: typing stopped partway through, consistent with execCommand
+  // silently failing once the composer stopped being focused).
+  async function typeIntoLexicalEditor(composer, text) {
     composer.focus();
     await delay(300);
     if (document.activeElement !== composer) {
@@ -134,22 +124,15 @@
 
     let typedCount = 0;
     for (const char of text) {
-      // Re-assert focus before every character as cheap insurance against
-      // losing it mid-typing — a second real bug found the same test run:
-      // typing stopped partway through and the tab closed, consistent with
-      // execCommand silently failing once the composer stopped being the
-      // focused/selected element. Focusing an element that's already
-      // focused is a no-op, so this doesn't disturb the caret when nothing
-      // actually went wrong.
       if (document.activeElement !== composer) composer.focus();
       const inserted = document.execCommand('insertText', false, char);
       if (!inserted) {
         // Substantially more diagnostic detail than a bare failure — this
         // exact failure mode wasn't reproducible outside a real Facebook
         // session, so if it happens again this is what tells us why instead
-        // of guessing a third time.
+        // of guessing again.
         return {
-          sent: false,
+          typed: false,
           reason: 'insertText command failed partway through typing',
           typedCount,
           totalLength: text.length,
@@ -161,6 +144,25 @@
       const isPause = Math.random() < 0.12;
       await delay(isPause ? 150 + Math.random() * 250 : 35 + Math.random() * 90);
     }
+    return { typed: true };
+  }
+
+  // Types the greeting DM into the chat composer and sends it. Confirmed
+  // live (2026-09-01), from Aaron Bihl's real chat popup: there is no
+  // separate Send button in this UI — pressing Enter is the only way to
+  // send, so that's simulated here. Confirmed live this reconciles
+  // correctly against the real editor and the simulated Enter actually
+  // sends. A brief pause before Enter, and another few seconds after it's
+  // sent before returning, replace what would otherwise be an instant
+  // type-send-close sequence — the caller (sidepanel/dm.js's
+  // sendGreetingDm) closes the tab as soon as this response comes back, so
+  // the pause belongs here, not in the caller.
+  MKT.act.sendComposedMessage = async function (text, testMode) {
+    const composer = document.querySelector(MKT.selectors.messageComposerInput);
+    if (!composer) return { sent: false, reason: 'message composer not found' };
+
+    const typeResult = await typeIntoLexicalEditor(composer, text);
+    if (!typeResult.typed) return { sent: false, ...typeResult };
 
     if (testMode) {
       await delay(3000 + Math.random() * 2000);
@@ -173,5 +175,34 @@
     composer.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
     await delay(3000 + Math.random() * 2000); // stay on the message a few seconds rather than closing instantly
     return { sent: true };
+  };
+
+  // Opens the "What's on your mind?" create-post popup for Step 3's 3A
+  // (post to personal page). Not gated by Test Mode, same reasoning as
+  // clicking into a candidate's profile or opening the DM chat popup:
+  // opening a UI isn't the policed action. Matched by visible text
+  // (MKT.patterns.postComposerTriggerText) rather than a CSS selector — this
+  // trigger has no aria-label of its own, unlike the Post button inside the
+  // popup it opens.
+  MKT.act.clickPostComposerTrigger = function () {
+    const buttons = [...document.querySelectorAll('[role="button"]')];
+    const trigger = buttons.find((b) => MKT.patterns.postComposerTriggerText.test(b.textContent.trim()));
+    if (!trigger) return { opened: false, reason: 'post composer trigger not found' };
+    trigger.click();
+    return { opened: true };
+  };
+
+  // Types the approved draft into the post composer and stops there —
+  // per Greg's explicit design (2026-09-01): 3A is assisted, not automatic.
+  // The extension's job ends at typing; Greg reviews (attaches a photo for
+  // long-form, picks a background for short-form, etc.) and clicks Facebook's
+  // own Post button himself. No Enter/Post-click simulation here at all,
+  // unlike the DM composer — there's no "send" step in this flow to gate by
+  // Test Mode either, so this always actually types (same as DM's typing
+  // half, which was already considered safe regardless of Test Mode).
+  MKT.act.typePostDraft = async function (text) {
+    const composer = document.querySelector(MKT.selectors.postComposerInput);
+    if (!composer) return { typed: false, reason: 'post composer input not found' };
+    return typeIntoLexicalEditor(composer, text);
   };
 })();

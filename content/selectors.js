@@ -82,6 +82,18 @@
     // popup — confirmed live: pressing Enter is the only way to send.
     messageComposerInput: 'div[contenteditable="true"][role="textbox"][aria-label^="Write to "]',
 
+    // Confirmed live (2026-09-01), from Greg's real personal-page post
+    // composer: clicking the "What's on your mind, <Name>?" prompt opens a
+    // real modal popup in the middle of the screen (not an inline expand,
+    // not a corner popup like the Messenger composer). The input itself is
+    // also Lexical (`data-lexical-editor="true"`, same as the DM composer),
+    // but identified by `aria-placeholder` here, not `aria-label` — Facebook
+    // uses different attributes for these two composers, confirmed by
+    // directly comparing both real elements. `aria-placeholder^="What's on
+    // your mind,"` is the dynamic-name-suffix anchor, same pattern as
+    // Add Friend/Cancel Request/the DM composer.
+    postComposerInput: 'div[contenteditable="true"][role="textbox"][aria-placeholder^="What\'s on your mind,"]',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).
@@ -97,9 +109,14 @@
     detailPaneBioText: null,
   };
 
-  // Not a CSS selector — mutual-friend count is plain visible text with no
-  // stable attribute hook, so it's matched by pattern instead.
+  // Not CSS selectors — matched by pattern instead of a stable attribute.
   MKT.patterns = {
     mutualFriendsCount: /^\d[\d,]*\s+mutual friends?$/i,
+    // Confirmed live (2026-09-01), from Greg's real profile: the
+    // "What's on your mind, <Name>?" trigger that OPENS the create-post
+    // popup has no aria-label of its own (unlike the Post button inside the
+    // popup, which does — `aria-label="Post"`) — only its own visible text
+    // identifies it, same reasoning as mutualFriendsCount above.
+    postComposerTriggerText: /^What's on your mind, .+\?$/,
   };
 })();

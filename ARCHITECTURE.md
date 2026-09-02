@@ -491,10 +491,30 @@ Threaded through `lib/content.js`'s `buildPrompt`/`callClaude`/`generateContent`
 parameter, fetched by `sidepanel/content.js` right before each Generate call — this module stays
 storage-agnostic, same convention as `targetPersona`/`dayTypeMap`.
 
-**Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
-today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
-verification for each destination, same discipline as every other Facebook interaction in this
-project, especially Story and group posting which haven't been looked at yet at all.
+**3A (post to personal page) built, per Greg (2026-09-01) — pending live verification.** Real DOM
+verified against Greg's own composer: clicking the "What's on your mind, &lt;Name&gt;?" prompt opens
+a real modal popup (not an inline expand, not a corner popup like Messenger). The trigger has no
+aria-label of its own — matched by visible text (`postComposerTriggerText` pattern) rather than a
+CSS selector. The composer is Lexical (same `data-lexical-editor="true"` marker as the DM composer)
+but identified by `aria-placeholder`, not `aria-label`.
+
+Deliberately **assisted, not automatic** — confirmed with Greg: full automation doesn't make sense
+for long-form (needs a manually-attached photo) or short-form (needs Greg to pick a background), so
+the extension opens the composer, types the approved draft, and stops — Greg attaches media/picks a
+background and clicks Facebook's own Post button himself. This also sidesteps the DM Queue's
+background-tab focus lesson: since Greg needs to end up looking at the open composer anyway, this
+runs on his own active tab (navigating it to `facebook.com/me` first if needed, mirroring the
+Discovery Batch auto-navigate fix) rather than a background tab needing focus restored after.
+
+The char-by-char Lexical-typing logic (settle delay, refocus retry, human cadence) was extracted
+from the DM composer into a shared `typeIntoLexicalEditor(composer, text)` in `content/act.js`, used
+by both the DM send and this new `typePostDraft` — avoids two near-identical copies, and any future
+focus/timing fix benefits both. `content/content.js`'s composer-wait polling was generalized the
+same way (`waitForComposer` → `waitForElement(selector, description)`).
+
+**Not yet built:** 3B/3C/3D (business page, Story, group) — each will need its own real DOM
+verification, same discipline as everything else, especially Story and group posting which haven't
+been looked at yet at all.
 
 ---
 

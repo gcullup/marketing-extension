@@ -1150,7 +1150,45 @@ philosophy) — a public post is far more visible/permanent than a DM.
       (window filtering, approved-only, today-exclusion) and the resulting prompt shape in a live
       browser JS sandbox before wiring in. **Pending: Greg confirms drafts actually avoid repeating
       recent content once there's enough approved history to test against.**
-- [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
+- [~] 3.2 3A — Post to personal page (assisted, per Greg's explicit choice, 2026-09-01) — **built,
+      pending live verification.** Real DOM verified against Greg's own personal-page composer:
+      clicking the "What's on your mind, &lt;Name&gt;?" prompt opens a real modal popup (not an
+      inline expand, not a corner popup like the Messenger composer). The trigger has no aria-label
+      of its own — matched by visible text (`MKT.patterns.postComposerTriggerText`,
+      `/^What's on your mind, .+\?$/`) rather than a CSS selector, verified against the exact real
+      markup in a live browser JS sandbox. The composer itself is Lexical (confirmed by the same
+      `data-lexical-editor="true"` marker as the DM composer) but identified by `aria-placeholder`,
+      not `aria-label` like the DM composer — `postComposerInput` selector, also verified against
+      the real markup.
+
+      **Design, confirmed with Greg:** fully assisted, deliberately — the extension opens the
+      composer and types the approved draft in, then stops there. Greg attaches a photo (long-form)
+      or picks a background (short-form) and clicks Facebook's own Post button himself; nothing here
+      ever clicks Post. This also sidesteps the DM Queue's background-tab focus lesson entirely —
+      since Greg needs to end up looking at the open composer anyway, this operates on his own
+      ACTIVE tab (navigating it to `facebook.com/me` first if needed, mirroring the Discovery Batch
+      auto-navigate fix) rather than a background tab that would need focus restored afterward.
+
+      **Real refactor along the way:** the char-by-char Lexical-typing logic (settle delay, refocus
+      retry, human-cadence pacing) used to live only inside the DM composer's `sendComposedMessage`.
+      Extracted into a shared `typeIntoLexicalEditor(composer, text)` in `content/act.js`, used by
+      both the DM send and this new `typePostDraft` — one implementation instead of two
+      near-identical copies, and any future focus/timing fix benefits both callers automatically.
+      `content/content.js`'s composer-wait polling was generalized the same way (`waitForComposer` →
+      `waitForElement(selector, description)`).
+
+      New content-script message `DRAFT_FEED_POST` (clicks the trigger, waits for the composer,
+      types); `sidepanel/content.js` gained a "3A — Personal Page" section with a "Post to Personal
+      Page" button, gated on the draft actually being Approved first (re-checks the ledger directly,
+      doesn't trust whatever's currently in the textarea).
+
+      **Not yet live-tested** — same discipline as everything else in this project: built and
+      reasoned through carefully, but the trigger-click → modal-open → typing sequence has never
+      run against a real Facebook session. **Pending: Greg approves a draft and clicks Post to
+      Personal Page** — watch for: does the trigger open the modal reliably, does typing work
+      without needing manual focus (expected to be fine since this runs in the active tab already,
+      unlike the original DM bug), and does the composer end up in the right state for Greg to
+      finish posting himself.
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story
 - [ ] 3.5 3D — Post to a group Greg runs
