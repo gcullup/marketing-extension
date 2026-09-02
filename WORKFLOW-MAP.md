@@ -744,10 +744,18 @@ auto-add/review/reject, a fresh reject correctly showed `removed: true`. **The S
 returning a clean `BATCH_COMPLETE` with `stoppedReason: "user_stopped"` instead of hanging or
 erroring. This is the first real evidence the alarms-driven rebuild works across multiple steps
 without dying — the old code's confirmed failure mode was silently dying partway through a run
-just like this one. **Still pending:** a run that completes the full daily limit (this one was
-stopped early, not run to completion or list-exhaustion), and ideally a genuine forced
-service-worker kill mid-run to prove the actual resumption behavior the rebuild exists for (stopping
-via the Stop button proves clean shutdown, not recovery from an abrupt kill).
+just like this one. **Second real run, confirmed live (2026-09-01):** a full unattended run this time — 29 candidates
+tried, 26 newly screened, ran on its own across many alarm-driven steps until the suggestions list
+naturally ran dry (`stoppedReason: "list_exhausted"`), not a manual Stop. Verdicts/rejects/removals
+all correct again. This is stronger evidence than the first run: a longer, genuinely unattended
+stretch surviving all the way to its own natural stopping point, which is exactly the scenario the
+old code used to die in partway through.
+
+**Still pending:** a run that actually hits the configured daily limit (`daily_limit_reached` —
+both real runs so far ended a different way: one via manual Stop, one via list exhaustion), and
+ideally a genuine forced service-worker kill mid-run to prove the actual resumption behavior the
+rebuild exists for (a clean Stop and a natural list-exhaustion finish both prove the alarm loop keeps
+working across many steps, but neither one has yet tested recovery from an abrupt kill specifically).
 
 ---
 
