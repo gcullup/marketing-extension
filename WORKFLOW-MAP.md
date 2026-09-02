@@ -1103,6 +1103,15 @@ philosophy) — a public post is far more visible/permanent than a DM.
       app counts everywhere else (Unicode code point, matching `displayLength`) — **128 characters**.
       `SHORT_FORM_MAX_CHARS` updated from the 100 placeholder to this real, tested number.
 
+      **Lowered again the same day, per Greg:** the very next real draft came back at 178
+      characters — 50 over the 128 target — despite the prompt explicitly saying "MUST be 128
+      characters or fewer." Claude didn't reliably respect the cap just from being told in the
+      prompt. `SHORT_FORM_MAX_CHARS` lowered to 115 to add margin — not a new measurement of
+      Facebook's actual limit, just a tighter target to compensate for the model overshooting. If
+      overshoots keep happening at 115 too, the more reliable fix is enforcing the limit in code
+      after generation (check the length, re-ask if over) rather than trusting the prompt alone —
+      flagged for later, not built yet.
+
       **Content-recycling avoidance built, per Greg:** Claude is now shown the last ~month of
       *approved* posts (a new Settings field, `recentContentLookbackDays`, default 30 — "the last
       month or so," per Greg's own words) and told not to repeat the same angle/opening/phrasing.
