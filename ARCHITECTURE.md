@@ -102,6 +102,13 @@ The ledger is also the **dedupe layer**. A permanent `rejected` record is what s
 unqualified people cycling back into the queue forever — a likely contributor to the old build's
 decay.
 
+**Ledger management, per Greg (2026-09-01):** `sidepanel/ledger.html`/`ledger.js` ("Ledger," linked
+from the main panel) is a checkbox-based table over the whole Person Ledger — search by name, filter
+by state, select specific rows, delete them entirely via `lib/ledger.js`'s new `deletePeople(ids)`.
+More targeted than the existing `clearByState` ("Reset Queue"), which only ever deletes *everyone*
+in one state at once. "Select all" is scoped to the currently filtered/visible rows only, so
+switching filters can't silently select something never actually seen.
+
 ---
 
 ## Step 1 pipeline: discovery and screening

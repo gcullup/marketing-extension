@@ -1289,6 +1289,24 @@ number as-is rather than becoming "Step 2," since Steps 2 and 3-8 remain deferre
 renumbering it would just trade one inconsistency for another. Pure markup label changes in
 `panel.html` — no script changes needed.
 
+**Ledger manager built (2026-09-01), per Greg:** "View Ledger" was a plain read-only JSON dump in
+the panel's collapsed Diagnostics section — no way to remove specific unwanted entries, only the
+existing blunt `clearByState` ("Reset Queue," which only ever deletes *everyone* in `needs_review`
+or `queued`). Greg pictured "an interface where I can tick checkboxes and then choose to delete."
+Built as its own page, `sidepanel/ledger.html`/`ledger.js` ("Ledger," linked from the main panel next
+to Settings, not tucked in Diagnostics since this is a real management tool, not a debugging aid):
+a table of every person in the ledger with a checkbox per row, name/state/tier/confidence/discovered
+columns, a name search box and a state filter (populated from `lib/ledger.js`'s own `STATES` enum
+rather than a second hardcoded list), a "select all" checkbox scoped to only the currently *visible*
+(filtered) rows — switching filters never silently selects something Greg didn't actually see — and
+a "Delete Selected (N)" button gated by a confirm dialog naming the exact count, same discipline as
+Reset Queue. New `lib/ledger.js` function, `deletePeople(ids)`, deletes specific people by id
+entirely (not just a state change), mirroring `clearByState`'s existing irreversibility discipline.
+Verified the filter/select-all interaction (selecting within a filtered view doesn't falsely mark
+"select all" checked once the filter changes to show unselected people) in a live browser JS sandbox
+before wiring in. **Pending: Greg tries it live and confirms selecting and deleting specific records
+works as expected.**
+
 ---
 
 ## Session Log
