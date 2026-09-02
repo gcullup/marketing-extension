@@ -958,7 +958,7 @@ automatically rather than being left on the now-closing DM tab. This is a real, 
 browser will jump to the DM tab for the several seconds a send takes) but was necessary for the send
 to actually work reliably. Send Queue's and Check Accepted Friends' background-tab flows are
 unaffected — they only ever use plain clicks, which this investigation confirmed don't need focus.
-**Pending: Greg confirms DM sends now work without needing to manually focus the tab.**
+**Confirmed live (2026-09-01):** DM sends now work without Greg needing to manually focus the tab.
 - [x] 2.6 Per-message approval gate + low daily cap — the approval gate is Greg reviewing the DM
       Queue's rendered previews before clicking Send (assisted click, matching D6). The daily cap
       (`caps.maxMessagesPerDay`, default 15, already existed in settings from Phase 0) is enforced
