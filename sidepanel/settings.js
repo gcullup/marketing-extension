@@ -76,6 +76,7 @@ function renderForm(s) {
     $(`content-${day}`).value = s.contentCalendar?.[day] ?? '';
   }
   $('recentContentLookbackDays').value = s.recentContentLookbackDays ?? 30;
+  $('personalPageUrl').value = s.personalPageUrl ?? 'https://www.facebook.com/';
 
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
@@ -130,6 +131,7 @@ function collectFromForm() {
     dmDelayDays: toInt($('dmDelayDays').value, 2),
     contentCalendar,
     recentContentLookbackDays: toInt($('recentContentLookbackDays').value, 30),
+    personalPageUrl: $('personalPageUrl').value.trim() || 'https://www.facebook.com/',
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),

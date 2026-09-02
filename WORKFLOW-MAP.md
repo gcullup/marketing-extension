@@ -1182,13 +1182,16 @@ philosophy) — a public post is far more visible/permanent than a DM.
       Page" button, gated on the draft actually being Approved first (re-checks the ledger directly,
       doesn't trust whatever's currently in the textarea).
 
-      **Not yet live-tested** — same discipline as everything else in this project: built and
-      reasoned through carefully, but the trigger-click → modal-open → typing sequence has never
-      run against a real Facebook session. **Pending: Greg approves a draft and clicks Post to
-      Personal Page** — watch for: does the trigger open the modal reliably, does typing work
-      without needing manual focus (expected to be fine since this runs in the active tab already,
-      unlike the original DM bug), and does the composer end up in the right state for Greg to
-      finish posting himself.
+      **Real bug found on the very first live test, per Greg:** the target URL was hardcoded to
+      `https://www.facebook.com/me`, which lands on Greg's actual profile page — a page whose
+      composer DOM was never verified (only the main feed's was, from the console output Greg
+      pasted). **Fixed, and made configurable at the same time per Greg's own request:** a new
+      `personalPageUrl` Settings field (default the plain feed URL that was actually verified)
+      replaces the hardcoded constant. There's only one meaningful value for a personal profile
+      today, so the real value here is avoiding a future code edit rather than offering a genuine
+      choice — but it sets up the same pattern for 3B (business page), where choosing which Page to
+      post to will be a real, meaningful setting.
+      **Pending: Greg re-tests Post to Personal Page now that it targets the right page.**
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story
 - [ ] 3.5 3D — Post to a group Greg runs

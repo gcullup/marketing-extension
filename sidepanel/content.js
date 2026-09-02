@@ -198,22 +198,24 @@ approveBtn.addEventListener('click', async () => {
   }
 });
 
-const FACEBOOK_HOME_URL = 'https://www.facebook.com/me';
-
 // Mirrors panel.js's ensureOnSuggestionsPage pattern (built for Discovery
 // Batch, 2026-09-01): makes sure the active tab is somewhere the "What's on
-// your mind?" composer trigger actually exists before trying to click it —
-// own profile and the home feed both have it; the "/me" path reliably
-// redirects to the logged-in user's own profile, which this always targets
-// specifically (rather than "any facebook.com page," which could be
-// somewhere without the trigger at all, e.g. still on
-// friends/suggestions). Per Greg's design (2026-09-01), 3A is assisted —
-// Greg needs to end up looking at the open composer to finish posting
-// himself, so this operates on the ACTIVE tab directly rather than a
-// background tab that would then need focus restored afterward (the lesson
-// from the DM Queue focus bug).
-function ensureOnFacebookHome(tab) {
-  if (tab.url && tab.url.startsWith(FACEBOOK_HOME_URL)) return Promise.resolve(tab);
+// your mind?" composer trigger actually exists before trying to click it.
+// Real bug found on the very first live test (2026-09-01): this originally
+// hardcoded https://www.facebook.com/me, which landed on Greg's actual
+// profile page — a page whose composer DOM was never verified (only the
+// main feed's was, from the console output Greg pasted). Now targets
+// `settings.personalPageUrl` (a new Settings field, default the plain feed
+// URL that was actually verified) instead of a hardcoded constant, per
+// Greg's own request — sets up the same pattern for 3B (business page),
+// where choosing which Page to post to will be a real, meaningful setting,
+// not just this one's future-proofing gesture. Per Greg's design
+// (2026-09-01), 3A is assisted — Greg needs to end up looking at the open
+// composer to finish posting himself, so this operates on the ACTIVE tab
+// directly rather than a background tab that would then need focus restored
+// afterward (the lesson from the DM Queue focus bug).
+function ensureOnFacebookHome(tab, targetUrl) {
+  if (tab.url && tab.url.startsWith(targetUrl)) return Promise.resolve(tab);
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -235,7 +237,7 @@ function ensureOnFacebookHome(tab) {
     chrome.tabs.onUpdated.addListener(onUpdated);
 
     timeoutHandle = setTimeout(() => finish(null, new Error('timed out loading Facebook')), 15000);
-    chrome.tabs.update(tab.id, { url: FACEBOOK_HOME_URL });
+    chrome.tabs.update(tab.id, { url: targetUrl });
   });
 }
 
@@ -254,12 +256,13 @@ postPersonalBtn.addEventListener('click', async () => {
   postPersonalBtn.disabled = true;
   postStatusEl.textContent = 'Opening your profile…';
   try {
+    const settings = await getSettings();
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
       postStatusEl.textContent = 'No active tab found.';
       return;
     }
-    const readyTab = await ensureOnFacebookHome(tab);
+    const readyTab = await ensureOnFacebookHome(tab, settings.personalPageUrl);
 
     postStatusEl.textContent = 'Opening the composer and typing…';
     const result = await new Promise((resolve) => {

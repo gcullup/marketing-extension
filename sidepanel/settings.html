@@ -223,6 +223,10 @@
     <p class="hint">When drafting a new post, Claude is shown approved posts from this many days back and told not to repeat the same angle/opening/phrasing. Per Greg (2026-09-01): "the last month or so."</p>
     <input type="number" id="recentContentLookbackDays" min="0" />
 
+    <label for="personalPageUrl">Personal page URL (3A)</label>
+    <p class="hint">Where "Post to Personal Page" navigates before clicking the "What's on your mind?" prompt.</p>
+    <input type="text" id="personalPageUrl" placeholder="https://www.facebook.com/" />
+
     <h2>Timing</h2>
     <p class="hint">Pause between finishing one candidate and starting the next during a Discovery Batch run — only applied after real Facebook interaction, not after an instant already-known skip. <strong>Revised 2026-09-01:</strong> the batch now schedules its next step via chrome.alarms (so it survives the background service worker being killed — see ARCHITECTURE.md hazard #2), and Chrome will not fire an alarm sooner than ~30 seconds out no matter what's requested. In practice this means the real pause is <code>max(30s, your setting)</code> — values below 30s (including the defaults) are silently floored to ~30s by Chrome itself, not by this extension.</p>
     <div class="three-col">

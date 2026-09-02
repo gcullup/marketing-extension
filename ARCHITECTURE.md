@@ -512,6 +512,13 @@ by both the DM send and this new `typePostDraft` — avoids two near-identical c
 focus/timing fix benefits both. `content/content.js`'s composer-wait polling was generalized the
 same way (`waitForComposer` → `waitForElement(selector, description)`).
 
+**Real bug found on the first live test, fixed with a Settings field, per Greg:** the target URL
+was hardcoded to `https://www.facebook.com/me`, which lands on the profile page — never verified,
+unlike the main feed the composer DOM was actually captured from. `personalPageUrl` (new Settings
+field, default the verified feed URL) replaces the hardcoded constant. Only one value is meaningful
+for a personal profile today, so this mainly avoids a future code edit — the real payoff comes with
+3B (business page), where choosing which Page to post to is a genuine setting.
+
 **Not yet built:** 3B/3C/3D (business page, Story, group) — each will need its own real DOM
 verification, same discipline as everything else, especially Story and group posting which haven't
 been looked at yet at all.
