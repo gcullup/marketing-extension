@@ -472,6 +472,16 @@ tested number — Greg found the actual background-eligibility boundary by pasti
 text into a real post until the option disappeared. Counted the same way this app counts everywhere
 (Unicode code point): **128 characters**. `SHORT_FORM_MAX_CHARS` now reflects this.
 
+**Real enforcement added, per Greg (2026-09-01):** two consecutive real drafts both overshot their
+character target despite an explicit "MUST be N characters" instruction (50 over 128, then 14 over
+a lowered 115) — concrete evidence that Claude doesn't reliably self-track character counts while
+generating, regardless of prompt wording. `generateContent` now measures the actual result
+(`facebookFormat.js`'s `displayLength`) and, for any plan with `maxChars` set, retries up to
+`MAX_LENGTH_RETRIES` (2) times with concrete corrective feedback ("previous attempt was N chars, M
+over the limit"), keeping whichever attempt ends up shortest. Returns `overLimit: true` if still
+over after every retry so the caller can say so plainly rather than presenting a non-compliant draft
+as a clean success. Long-form/engagement (`maxChars: null`) never trigger this loop.
+
 **Content-recycling avoidance, per Greg (2026-09-01):** Claude is shown the last ~month of
 *approved* posts (`recentContentLookbackDays` setting, default 30) and told not to repeat the same
 angle/opening/phrasing. `lib/contentLedger.js`'s `getApprovedContentSince(days, excludeDateKey,

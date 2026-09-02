@@ -156,12 +156,21 @@ generateBtn.addEventListener('click', async () => {
       overrideType,
     });
     renderBadge(record.state);
-    statusEl.textContent = 'Drafted — review and edit as needed, then Approve.';
+    // Per Greg's real observation (2026-09-01): Claude doesn't reliably hit
+    // a character target just from being told to — generateContent already
+    // retries with concrete feedback when it's over, but if it's STILL over
+    // after those retries, say so plainly rather than showing the same
+    // "Drafted" message as a clean success (the red character count already
+    // flags it visually, but this makes it unmissable).
+    statusEl.textContent = result.overLimit
+      ? `Drafted, but still over the ${currentPlan.maxChars}-character limit after retrying — shorten it manually, or Regenerate.`
+      : 'Drafted — review and edit as needed, then Approve.';
     await log('info', 'Content: draft generated', {
       dayKey: currentDayKey,
       contentType: currentPlan.type,
       modifier,
       overrideType,
+      overLimit: result.overLimit,
       recentContentCount: recentContent.length,
     });
   } catch (err) {

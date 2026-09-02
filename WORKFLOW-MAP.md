@@ -1112,6 +1112,21 @@ philosophy) — a public post is far more visible/permanent than a DM.
       after generation (check the length, re-ask if over) rather than trusting the prompt alone —
       flagged for later, not built yet.
 
+      **That "later" arrived the same day** — the very next real draft came back at 129 characters,
+      14 over the 115 target, confirming this wasn't a one-off: Claude doesn't reliably self-track
+      character counts while generating, no matter the wording. **Built real enforcement:**
+      `generateContent` now measures the actual result length (`displayLength`) and, for any plan
+      with `maxChars` set, retries up to `MAX_LENGTH_RETRIES` (2) times with concrete feedback —
+      "your previous attempt was N characters, M over the limit, rewrite it to fit" — keeping
+      whichever attempt ends up shortest, in case a retry overshoots even worse. Returns
+      `overLimit: true` if it's still over after every retry, rather than silently returning a
+      non-compliant draft. `sidepanel/content.js` shows a plain, unmissable status message when that
+      happens ("Drafted, but still over the limit after retrying — shorten it manually, or
+      Regenerate") instead of the normal success message. Verified the retry loop (already-compliant
+      first try, fixed by one retry, never fixed after the max retries, and long-form/engagement's
+      `maxChars: null` never triggering retries at all) in a live browser JS sandbox before wiring in.
+      **Pending: Greg confirms this actually keeps short-form drafts within limit going forward.**
+
       **Content-recycling avoidance built, per Greg:** Claude is now shown the last ~month of
       *approved* posts (a new Settings field, `recentContentLookbackDays`, default 30 — "the last
       month or so," per Greg's own words) and told not to repeat the same angle/opening/phrasing.
