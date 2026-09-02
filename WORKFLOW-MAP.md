@@ -1073,6 +1073,29 @@ philosophy) — a public post is far more visible/permanent than a DM.
       table; `resolveContentPlan` and `generateContent` both thread it through. Settings' new dropdown
       options are populated from `lib/content.js`'s own `CONTENT_TYPE_OPTIONS` rather than a second
       hardcoded copy in the Settings page, so the two can't drift apart.
+
+      **Short-form length target revised, per Greg (2026-09-01):** the goal was never really just
+      "no See More" — Greg wants short-form posts short enough to use Facebook's colored-background
+      text option, a stricter (and undocumented, unverified) limit. `SHORT_FORM_MAX_CHARS` changed
+      from the old 400 (a "See More" guess) to 100 (the figure most commonly cited for the
+      background option) — still an unconfirmed placeholder, same as the old value was, just a
+      better-targeted one; satisfying the smaller limit automatically satisfies "no See More" too.
+      **Also fixed a real ambiguity Greg flagged directly:** the bold-Unicode conversion
+      (`facebookFormat.js`) inflates the character count in ways that may not match however Facebook
+      itself counts characters for its background-eligibility check — rather than guess at that,
+      short-form now skips bold formatting entirely (`allowBoldFormatting: false` on the plan,
+      threaded through both the prompt — a new `PLAIN_FORMATTING_GUIDANCE` — and `callClaude`, which
+      only runs `toFacebookFormatted` for plans that allow it). Long-form and engagement keep bold
+      formatting as before. Verified the conditional prompt-building logic in a live browser JS
+      sandbox before wiring in. **Pending: Greg tests whether a 100-char short-form draft actually
+      shows the background option, and adjusts the number if not.**
+
+      **Copy button added, per Greg:** one click copies the current draft text to the clipboard
+      (`navigator.clipboard.writeText`) instead of manually selecting all the text in the box.
+
+      **Panel ordering fixed, per Greg:** the Content section was appearing after Step 9 in the side
+      panel despite being numbered Step 3 — pure markup reorder in `panel.html` (Content now sits
+      above Step 9), no script changes needed since `panel.js` looks everything up by element ID.
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story

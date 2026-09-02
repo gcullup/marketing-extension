@@ -13,6 +13,7 @@ const draftTextEl = document.getElementById('draftText');
 const modifierInputEl = document.getElementById('modifierInput');
 const charCountEl = document.getElementById('charCount');
 const generateBtn = document.getElementById('generateBtn');
+const copyBtn = document.getElementById('copyBtn');
 const approveBtn = document.getElementById('approveBtn');
 const statusEl = document.getElementById('status');
 const stateBadgeEl = document.getElementById('stateBadge');
@@ -99,6 +100,21 @@ async function init() {
 
 contentTypeSelectEl.addEventListener('change', refreshPlanDisplay);
 draftTextEl.addEventListener('input', updateCharCount);
+
+// Per Greg's request (2026-09-01): a one-click way to get the draft onto
+// the clipboard instead of manually selecting all the text in the box.
+copyBtn.addEventListener('click', async () => {
+  if (!draftTextEl.value.trim()) {
+    statusEl.textContent = 'Nothing to copy yet — generate a draft first.';
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(draftTextEl.value);
+    statusEl.textContent = 'Copied to clipboard.';
+  } catch (err) {
+    statusEl.textContent = `Couldn't copy: ${err.message}`;
+  }
+});
 
 generateBtn.addEventListener('click', async () => {
   generateBtn.disabled = true;

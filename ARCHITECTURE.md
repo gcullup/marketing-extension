@@ -457,6 +457,16 @@ rather than fetched by the library code itself. Settings' dropdown options come 
 `CONTENT_TYPE_OPTIONS` (the same list `lib/content.js` uses internally), so the two can't drift out
 of sync.
 
+**Short-form target revised, per Greg (2026-09-01):** the real goal was never just "no See More" —
+short enough for Facebook's colored-background text option (a stricter, undocumented,
+unverified limit) is what actually matters, and satisfying it subsumes the "See More" goal.
+`SHORT_FORM_MAX_CHARS` changed from 400 (old guess) to 100 (the commonly-cited figure for the
+background option, still just a placeholder). Short-form also now skips bold-Unicode formatting
+entirely (`allowBoldFormatting: false` on the plan) — those characters inflate the count in ways
+that may not match Facebook's own background-eligibility check, and rather than guess at the
+relationship, short-form just doesn't use them. `buildPrompt` and `callClaude` both branch on
+`plan.allowBoldFormatting`; long-form and engagement are unaffected.
+
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
 verification for each destination, same discipline as every other Facebook interaction in this
