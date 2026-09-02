@@ -467,6 +467,20 @@ that may not match Facebook's own background-eligibility check, and rather than 
 relationship, short-form just doesn't use them. `buildPrompt` and `callClaude` both branch on
 `plan.allowBoldFormatting`; long-form and engagement are unaffected.
 
+**Confirmed with real data, per Greg (2026-09-01):** the 100-char placeholder was replaced with a
+tested number — Greg found the actual background-eligibility boundary by pasting increasingly long
+text into a real post until the option disappeared. Counted the same way this app counts everywhere
+(Unicode code point): **128 characters**. `SHORT_FORM_MAX_CHARS` now reflects this.
+
+**Content-recycling avoidance, per Greg (2026-09-01):** Claude is shown the last ~month of
+*approved* posts (`recentContentLookbackDays` setting, default 30) and told not to repeat the same
+angle/opening/phrasing. `lib/contentLedger.js`'s `getApprovedContentSince(days, excludeDateKey,
+date)` filters to approved-only (the closest available proxy for "content that actually got posted,"
+since 3A-3D posting isn't built yet), excludes the date being generated for, sorted oldest-first.
+Threaded through `lib/content.js`'s `buildPrompt`/`callClaude`/`generateContent` as an explicit
+parameter, fetched by `sidepanel/content.js` right before each Generate call — this module stays
+storage-agnostic, same convention as `targetPersona`/`dayTypeMap`.
+
 **Not yet built:** the actual 3A-3D posting actions (personal page, business page, Story, group) —
 today's work is entirely the generation/review side of the pipeline. Posting will need real DOM
 verification for each destination, same discipline as every other Facebook interaction in this

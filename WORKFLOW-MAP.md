@@ -1096,6 +1096,27 @@ philosophy) — a public post is far more visible/permanent than a DM.
       **Panel ordering fixed, per Greg:** the Content section was appearing after Step 9 in the side
       panel despite being numbered Step 3 — pure markup reorder in `panel.html` (Content now sits
       above Step 9), no script changes needed since `panel.js` looks everything up by element ID.
+
+      **Short-form length target confirmed with real data, per Greg (2026-09-01):** Greg empirically
+      found Facebook's actual colored-background-option boundary by pasting increasingly long text
+      into a real post until the option disappeared. The winning string, counted the same way this
+      app counts everywhere else (Unicode code point, matching `displayLength`) — **128 characters**.
+      `SHORT_FORM_MAX_CHARS` updated from the 100 placeholder to this real, tested number.
+
+      **Content-recycling avoidance built, per Greg:** Claude is now shown the last ~month of
+      *approved* posts (a new Settings field, `recentContentLookbackDays`, default 30 — "the last
+      month or so," per Greg's own words) and told not to repeat the same angle/opening/phrasing.
+      `lib/contentLedger.js`'s new `getApprovedContentSince(days, excludeDateKey, date)` filters to
+      `state === 'approved'` (the closest proxy this app has for "content that actually got posted,"
+      since the real posting actions aren't built yet), excludes today's own date so a Regenerate on
+      an already-approved day doesn't compare a draft against itself, and sorts oldest-first.
+      `lib/content.js`'s `buildPrompt`/`callClaude`/`generateContent` all thread `recentContent`
+      through as an explicit parameter — this module stays storage-agnostic, same convention as
+      `targetPersona`/`dayTypeMap` already being passed in rather than read internally.
+      `sidepanel/content.js` fetches it right before each Generate call. Verified the ledger query
+      (window filtering, approved-only, today-exclusion) and the resulting prompt shape in a live
+      browser JS sandbox before wiring in. **Pending: Greg confirms drafts actually avoid repeating
+      recent content once there's enough approved history to test against.**
 - [ ] 3.2 3A — Post to personal page (assisted click, matching D6)
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story

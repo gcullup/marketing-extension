@@ -75,6 +75,7 @@ function renderForm(s) {
   for (const day of DAYS) {
     $(`content-${day}`).value = s.contentCalendar?.[day] ?? '';
   }
+  $('recentContentLookbackDays').value = s.recentContentLookbackDays ?? 30;
 
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
@@ -128,6 +129,7 @@ function collectFromForm() {
     staleRequestDays: toInt($('staleRequestDays').value, 14),
     dmDelayDays: toInt($('dmDelayDays').value, 2),
     contentCalendar,
+    recentContentLookbackDays: toInt($('recentContentLookbackDays').value, 30),
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),

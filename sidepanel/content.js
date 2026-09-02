@@ -1,5 +1,12 @@
 import { resolveContentPlan, generateContent } from '../lib/content.js';
-import { getContentForDate, saveDraft, approveContent, CONTENT_STATES } from '../lib/contentLedger.js';
+import {
+  getContentForDate,
+  saveDraft,
+  approveContent,
+  getApprovedContentSince,
+  dateKey,
+  CONTENT_STATES,
+} from '../lib/contentLedger.js';
 import { getSettings } from '../lib/store.js';
 import { log } from '../lib/log.js';
 import { displayLength } from '../lib/facebookFormat.js';
@@ -123,6 +130,11 @@ generateBtn.addEventListener('click', async () => {
     const settings = await getSettings();
     const modifier = modifierInputEl.value;
     const overrideType = contentTypeSelectEl.value || null;
+    // Per Greg's request (2026-09-01): feed Claude the last ~month of
+    // approved posts so it doesn't recycle the same angle/opening too soon.
+    // Excludes today's own date so re-generating an already-approved day
+    // doesn't compare a fresh draft against itself.
+    const recentContent = await getApprovedContentSince(settings.recentContentLookbackDays, dateKey(today), today);
     const result = await generateContent({
       apiKey: settings.claude.apiKey,
       model: settings.claude.model,
@@ -131,6 +143,7 @@ generateBtn.addEventListener('click', async () => {
       modifier,
       overrideType,
       dayTypeMap: settings.contentCalendar,
+      recentContent,
     });
     draftTextEl.value = result.content;
     updateCharCount();
@@ -149,6 +162,7 @@ generateBtn.addEventListener('click', async () => {
       contentType: currentPlan.type,
       modifier,
       overrideType,
+      recentContentCount: recentContent.length,
     });
   } catch (err) {
     statusEl.textContent = `Failed: ${err.message}`;
