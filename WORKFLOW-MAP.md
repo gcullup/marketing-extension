@@ -1125,7 +1125,16 @@ philosophy) — a public post is far more visible/permanent than a DM.
       Regenerate") instead of the normal success message. Verified the retry loop (already-compliant
       first try, fixed by one retry, never fixed after the max retries, and long-form/engagement's
       `maxChars: null` never triggering retries at all) in a live browser JS sandbox before wiring in.
-      **Pending: Greg confirms this actually keeps short-form drafts within limit going forward.**
+      **Confirmed live (2026-09-01):** next real draft came back at 118 characters (still 3 over
+      the 115 target, but Greg confirmed it fit fine on real Facebook — the background option
+      showed). Combined with the original 128-char test also confirmed working and the 178-char one
+      confirmed failing, the real evidence points to Facebook's actual boundary sitting up near 128,
+      not down at 115 — 115 was a defensive overcorrection made before real enforcement existed.
+      **Deliberately left at 115 rather than raised, per Greg's own reasoning:** since the retry loop
+      still doesn't hit the target with perfect precision (115 → 118, not 115 exactly), that natural
+      slop is doing useful work as a built-in safety margin under the true ~128 boundary — raising
+      the target to 128 would remove that margin and risk landing right on the edge. No further
+      change needed; this is a considered decision, not an open question.
 
       **Content-recycling avoidance built, per Greg:** Claude is now shown the last ~month of
       *approved* posts (a new Settings field, `recentContentLookbackDays`, default 30 — "the last
