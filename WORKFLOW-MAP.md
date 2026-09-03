@@ -24,8 +24,9 @@ Update this file at the end of every working session.
   two real bugs found and fixed. **3B (business page) is blocked, not just unbuilt** — Greg's
   Facebook account configuration doesn't allow posting directly to his business page, confirmed
   2026-09-02; its button is disabled/"for future development," not pending a code fix. **3C (Story)
-  built 2026-09-02**, reusing 3A's proven tab-handling and Lexical-typing logic against real,
-  verified Story-editor DOM — pending Greg's live test. 3D (group) isn't built yet.
+  is now proven live end to end too (2026-09-02)** — worked on the first try, no bugs found, reusing
+  3A's proven tab-handling and Lexical-typing logic against real, verified Story-editor DOM. 3D
+  (group) isn't built yet.
 
 ---
 
@@ -1238,7 +1239,7 @@ philosophy) — a public post is far more visible/permanent than a DM.
       a button nothing can ever click). The `businessPageUrl` Settings field was deliberately left in
       place, with its hint text explaining why the button is disabled — this is a genuine "not right
       now" rather than "never," so the setting stays ready if Greg's account configuration changes.
-- [~] 3.4 3C — Post to Story (started 2026-09-02, per Greg) — **built, pending live verification.**
+- [x] 3.4 3C — Post to Story (started 2026-09-02, per Greg) — **proven live on the first try.**
       Scope confirmed with Greg: 3C posts whatever content is approved that day (same rule as
       3A/3B), personal Story only (no business-Page Story support, matching 3B being blocked).
 
@@ -1272,11 +1273,10 @@ philosophy) — a public post is far more visible/permanent than a DM.
       `personalPageUrl`/`businessPageUrl`) since it's Facebook's own fixed entry point, the same
       for every install — matches the existing `SUGGESTIONS_URL` pattern in `sidepanel/panel.js`.
 
-      **Next: Greg approves a draft and clicks "Post to Story" live.** Since this reuses 3A's
-      already-proven `openFacebookHomeTab` (new-tab-only, never navigates/reuses an existing tab)
-      and `typeIntoLexicalEditor`, and every selector here was verified against real DOM (not
-      guessed), this should work on the first try — but per this project's standing discipline nothing
-      is marked verified until Greg confirms it live.
+      **Confirmed live (2026-09-02):** Greg approved a draft, clicked "Post to Story," and it
+      worked on the first try — "worked like a charm." No bugs found this time, unlike 3A — reusing
+      3A's already-proven `openFacebookHomeTab` and `typeIntoLexicalEditor` against real, verified
+      selectors (never guessed) paid off. 3C (post to Story) is now proven live end to end.
 - [ ] 3.5 3D — Post to a group Greg runs
 - [ ] 3.6 **ENDPOINT 3 SIGNED OFF**
 

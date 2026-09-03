@@ -569,7 +569,7 @@ from `sidepanel/content.js` entirely rather than left wired to a button nothing 
 disabled) since this is a "not right now," not a "never" — ready to pick back up if Greg's account
 configuration changes.
 
-**3C (post to Story) built 2026-09-02, per Greg — pending live verification.** Scope confirmed
+**3C (post to Story) built and confirmed live 2026-09-02, per Greg.** Scope confirmed
 with Greg: posts whatever content is approved that day (same rule as 3A/3B), personal Story only —
 no business-Page Story support, matching 3B being blocked.
 
@@ -597,9 +597,13 @@ Settings field — it's Facebook's own fixed entry point, same for every install
 `personalPageUrl`/`businessPageUrl` which vary per-install.
 
 Reuses 3A's already-proven `openFacebookHomeTab` (always opens a brand-new tab, never
-navigates/reuses an existing one — the fix for the tab-clobbering bug) unchanged. **Not yet
-verified live** — every selector here came from Greg's real pasted DOM, not a guess, but nothing in
-this project is marked proven until it's actually been clicked through on the real page.
+navigates/reuses an existing one — the fix for the tab-clobbering bug) unchanged.
+
+**Confirmed live (2026-09-02):** Greg approved a draft, clicked "Post to Story," and it worked on
+the first try — "worked like a charm," no bugs found. Unlike 3A, nothing needed fixing after the
+first real click-through — the payoff of gathering real DOM for every selector up front (the
+trigger, the text box, and identifying-without-wiring the Share button) rather than guessing any
+of it. 3C (post to Story) is now proven live end to end.
 
 **Not yet built:** 3D (group) hasn't been looked at yet at all.
 
