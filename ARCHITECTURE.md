@@ -657,6 +657,30 @@ posting destinations (3A personal page, 3C Story, 3D group) are proven live, on 
 already-proven generation pipeline. 3B (business page) remains deliberately blocked by Greg's
 Facebook account configuration, not a code gap.
 
+**Two real quality gaps found and fixed post-sign-off (2026-09-03), per Greg**, from a real
+long-form draft that made it all the way to the actual Facebook composer:
+
+1. **Paragraph breaks weren't surviving into the actual post.** A raw `\n` character typed via
+   `execCommand('insertText', ...)` is inert as far as Lexical's editor model is concerned — it
+   doesn't parse literal newlines into new paragraph nodes; only a real Enter keypress does that.
+   `typeIntoLexicalEditor` (`content/act.js`) now takes an opt-in `newlineDispatchesEnter` parameter
+   — when true, each `\n` dispatches a real Enter keydown/keyup (the same mechanism
+   `sendComposedMessage` already uses to send a DM) instead of being typed as a literal character.
+   Two consecutive `\n`s (a blank-line paragraph gap) naturally becomes two Enters in a row,
+   reproducing the gap correctly. Defaults to `false` and is deliberately **not** enabled for the DM
+   composer: there, Enter means *send* (no separate Send button exists), so dispatching it
+   mid-typing would prematurely send a partial message. Only `typePostDraft`/`typeStoryText`/
+   `typeGroupPostDraft` (3A/3C/3D) opt in.
+2. **Em dashes read as an AI tell to Greg's audience.** Added a `HUMAN_VOICE_GUIDANCE` prompt line
+   in `lib/content.js`, applied to every content plan: avoid em dashes, semicolons, the "it's not
+   just X, it's Y" construction, and opening multiple paragraphs with a rhetorical question; vary
+   sentence length naturally. Written out as "em dash" in the instruction text (not the literal
+   character), so the instruction doesn't itself demonstrate the thing it bans. Deliberately **not**
+   code-enforced (unlike the character-limit retry loop) — if this instruction turns out as
+   unreliable as the character-count one did, the next step would be a code-level find/replace on
+   Claude's output, following the same "measure and enforce in code, don't just ask nicely" lesson —
+   not applied preemptively since it hasn't been observed failing yet.
+
 ---
 
 ## Settings schema

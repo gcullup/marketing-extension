@@ -3,7 +3,7 @@
 **Purpose:** single source of truth for what is built, what is next, and what is still undecided.
 Update this file at the end of every working session.
 
-- **Last updated:** 2026-09-02 (evening)
+- **Last updated:** 2026-09-03
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
 - **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
@@ -1333,6 +1333,36 @@ philosophy) — a public post is far more visible/permanent than a DM.
       pipeline (day-of-week defaults, content-type override, theme/modifier, content-recycling
       avoidance, selectable/"Surprise me" angle rotation, code-enforced character limits) was
       already proven live before any of the posting destinations were built.
+
+**Two real quality gaps found and fixed post-sign-off (2026-09-03), per Greg**, from a real
+long-form draft that made it all the way to the actual Facebook composer:
+
+1. **Paragraph breaks weren't surviving into the actual post.** The draft's blank lines between
+   paragraphs (visible fine in the Content page's own textarea) collapsed away once typed into
+   Facebook's real composer. Root cause: `content/act.js`'s `typeIntoLexicalEditor` typed a literal
+   `\n` character via `execCommand('insertText', ...)`, which Lexical's editor model treats as
+   inert data — it doesn't parse raw newlines into new paragraph nodes the way a real Enter
+   keypress does. **Fixed** by dispatching an actual Enter keydown/keyup for each `\n` instead
+   (same mechanism `sendComposedMessage` already uses to send a DM) — two consecutive `\n`s (a
+   blank-line paragraph gap) naturally becomes two Enters in a row, leaving one empty paragraph
+   between the two real ones, matching the textarea preview. Deliberately opt-in via a new
+   `newlineDispatchesEnter` parameter, defaulting to `false` — the DM composer's Enter key means
+   *send*, not *new paragraph* (no separate Send button exists there), so dispatching Enter
+   mid-typing there would prematurely send a partially-typed message. Only `typePostDraft`,
+   `typeStoryText`, and `typeGroupPostDraft` (3A/3C/3D) opt in; `sendComposedMessage` (the DM) is
+   untouched.
+2. **Em dashes read as an AI tell.** Greg's specific concern: readers who've gotten used to
+   spotting AI-generated text flag heavy em-dash use as a giveaway. Added a new
+   `HUMAN_VOICE_GUIDANCE` prompt line in `lib/content.js`, applied to every content plan (not just
+   the bold-formatting ones — this is about word choice, not visual styling): avoid em dashes
+   entirely, avoid semicolons, avoid the "it's not just X, it's Y" construction, avoid opening more
+   than one paragraph with a rhetorical question, and vary sentence length naturally. Written out
+   as "em dash" in the instruction text itself, not the actual character, so the instruction isn't
+   an example of the thing it bans. **Not code-enforced** (unlike the character-limit retry loop) —
+   if em dashes still slip through in practice despite the instruction, the next step would be a
+   code-level find/replace on Claude's output, mirroring how the character-limit lesson
+   ("asking nicely doesn't reliably work — measure and enforce in code") was eventually applied
+   there; not done preemptively here since it hasn't been observed failing yet.
 
 ---
 

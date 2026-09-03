@@ -114,7 +114,28 @@
   // against losing it mid-typing (a second real bug found the same test
   // run: typing stopped partway through, consistent with execCommand
   // silently failing once the composer stopped being focused).
-  async function typeIntoLexicalEditor(composer, text) {
+  // `newlineDispatchesEnter` (added 2026-09-03), per Greg: real gap found
+  // live — paragraph breaks in a long-form draft (blank lines between
+  // paragraphs) weren't surviving into the actual Facebook post. Root cause:
+  // a raw '\n' character passed to execCommand('insertText', ...) is inert
+  // as far as Lexical's own editor model is concerned — Lexical doesn't
+  // parse literal newline characters in typed text into new paragraph
+  // nodes, only a real Enter keypress triggers that split. Dispatching a
+  // real Enter keydown/keyup for each '\n' (same mechanism sendComposedMessage
+  // already uses to actually SEND a DM) makes Lexical split the paragraph
+  // for real; two consecutive '\n's (a blank-line paragraph gap in the
+  // source text) naturally becomes two Enters in a row, leaving one empty
+  // paragraph between the two real ones — exactly the visual gap Greg's
+  // draft preview already showed.
+  //
+  // Deliberately opt-in, defaulting to false: in the DM composer, Enter is
+  // how a message actually SENDS (no separate Send button exists there — see
+  // sendComposedMessage below), so dispatching Enter mid-typing there would
+  // prematurely send whatever had been typed so far. DM templates are
+  // single-line today, but this keeps that composer's behavior unchanged
+  // regardless. Only the post/Story/Group composers (where Enter creates a
+  // new paragraph, not a send) opt in.
+  async function typeIntoLexicalEditor(composer, text, { newlineDispatchesEnter = false } = {}) {
     composer.focus();
     await delay(300);
     if (document.activeElement !== composer) {
@@ -125,6 +146,16 @@
     let typedCount = 0;
     for (const char of text) {
       if (document.activeElement !== composer) composer.focus();
+
+      if (char === '\n' && newlineDispatchesEnter) {
+        const enterOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+        composer.dispatchEvent(new KeyboardEvent('keydown', enterOpts));
+        composer.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
+        typedCount++;
+        await delay(120 + Math.random() * 180); // a natural beat between paragraphs, not instant
+        continue;
+      }
+
       const inserted = document.execCommand('insertText', false, char);
       if (!inserted) {
         // Substantially more diagnostic detail than a bare failure — this
@@ -203,7 +234,7 @@
   MKT.act.typePostDraft = async function (text) {
     const composer = document.querySelector(MKT.selectors.postComposerInput);
     if (!composer) return { typed: false, reason: 'post composer input not found' };
-    return typeIntoLexicalEditor(composer, text);
+    return typeIntoLexicalEditor(composer, text, { newlineDispatchesEnter: true });
   };
 
   // Opens the text-story editor for Step 3's 3C (post to Story), from
@@ -223,7 +254,7 @@
   MKT.act.typeStoryText = async function (text) {
     const composer = document.querySelector(MKT.selectors.storyTextInput);
     if (!composer) return { typed: false, reason: 'story text input not found' };
-    return typeIntoLexicalEditor(composer, text);
+    return typeIntoLexicalEditor(composer, text, { newlineDispatchesEnter: true });
   };
 
   // Opens the group's inline post composer for Step 3's 3D (post to Group).
@@ -245,6 +276,6 @@
   MKT.act.typeGroupPostDraft = async function (text) {
     const composer = document.querySelector(MKT.selectors.groupPostComposerInput);
     if (!composer) return { typed: false, reason: 'group post composer input not found' };
-    return typeIntoLexicalEditor(composer, text);
+    return typeIntoLexicalEditor(composer, text, { newlineDispatchesEnter: true });
   };
 })();
