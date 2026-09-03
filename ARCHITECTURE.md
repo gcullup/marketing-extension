@@ -522,10 +522,22 @@ but identified by `aria-placeholder`, not `aria-label`.
 Deliberately **assisted, not automatic** — confirmed with Greg: full automation doesn't make sense
 for long-form (needs a manually-attached photo) or short-form (needs Greg to pick a background), so
 the extension opens the composer, types the approved draft, and stops — Greg attaches media/picks a
-background and clicks Facebook's own Post button himself. This also sidesteps the DM Queue's
-background-tab focus lesson: since Greg needs to end up looking at the open composer anyway, this
-runs on his own active tab (navigating it to `facebook.com/me` first if needed, mirroring the
-Discovery Batch auto-navigate fix) rather than a background tab needing focus restored after.
+background and clicks Facebook's own Post button himself.
+
+**Real, serious bug found live (2026-09-01), per Greg — "nothing happens" after clicking.** The
+original design reused whatever tab was currently active (via `chrome.tabs.update`), reasoning that
+Greg would end up looking at it anyway. But Greg naturally clicks "Post to Personal Page" *from the
+Content page itself* — making the Content page's own tab "the active tab." Navigating it to
+Facebook destroyed the very script that was supposed to keep running afterward (send the message,
+update the status, log the result) the instant its own document unloaded — silently, with no error
+and no log entry, since the JS context doing the logging no longer existed. **Fixed by never
+touching an existing tab at all**: `openFacebookHomeTab` always opens a brand-new tab (still made
+active/foreground, so Greg ends up looking at it) instead of navigating/reusing whatever happens to
+be active — slightly less efficient if Facebook is already open somewhere, but the only way to
+guarantee this action can't ever destroy the page it was launched from, or any other tab. Also
+fixed a related gap the missing log entry exposed: the click handler's `catch` block only ever set
+the status text, never logged — moved the log call into a `finally` so every outcome (success,
+business-logic failure, or thrown exception) is now recorded.
 
 The char-by-char Lexical-typing logic (settle delay, refocus retry, human cadence) was extracted
 from the DM composer into a shared `typeIntoLexicalEditor(composer, text)` in `content/act.js`, used

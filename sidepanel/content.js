@@ -208,28 +208,29 @@ approveBtn.addEventListener('click', async () => {
   }
 });
 
-// Mirrors panel.js's ensureOnSuggestionsPage pattern (built for Discovery
-// Batch, 2026-09-01): makes sure the active tab is somewhere the "What's on
-// your mind?" composer trigger actually exists before trying to click it.
-// Real bug found on the very first live test (2026-09-01): this originally
-// hardcoded https://www.facebook.com/me, which landed on Greg's actual
-// profile page — a page whose composer DOM was never verified (only the
-// main feed's was, from the console output Greg pasted). Now targets
-// `settings.personalPageUrl` (a new Settings field, default the plain feed
-// URL that was actually verified) instead of a hardcoded constant, per
-// Greg's own request — sets up the same pattern for 3B (business page),
-// where choosing which Page to post to will be a real, meaningful setting,
-// not just this one's future-proofing gesture. Per Greg's design
-// (2026-09-01), 3A is assisted — Greg needs to end up looking at the open
-// composer to finish posting himself, so this operates on the ACTIVE tab
-// directly rather than a background tab that would then need focus restored
-// afterward (the lesson from the DM Queue focus bug).
-function ensureOnFacebookHome(tab, targetUrl) {
-  if (tab.url && tab.url.startsWith(targetUrl)) return Promise.resolve(tab);
-
+// Real, serious bug found live (2026-09-01), per Greg: this used to reuse
+// "whatever tab is currently active" via chrome.tabs.update — but Greg
+// naturally clicks "Post to Personal Page" FROM the Content page itself,
+// which means the Content page's OWN tab was "the active tab." Navigating
+// it to facebook.com destroyed the very script that was supposed to keep
+// running afterward (send the DRAFT_FEED_POST message, update the status,
+// log the result) — the whole click handler died mid-flight the instant its
+// own document unloaded, with no error, no status update, no log entry.
+// That's exactly the silent "nothing happens" Greg saw.
+//
+// Fixed by never touching an existing tab at all — always opens a brand
+// NEW tab for this action instead of navigating/reusing whatever happens to
+// be active. Slightly less efficient if Greg already has Facebook open
+// somewhere, but this is the only way to guarantee the action can't ever
+// destroy the very page it was launched from (or any other tab Greg cares
+// about). Still made active/foreground per Greg's design (2026-09-01) —
+// he needs to end up looking at the open composer to finish posting
+// himself.
+function openFacebookHomeTab(targetUrl) {
   return new Promise((resolve, reject) => {
     let settled = false;
     let timeoutHandle;
+    let newTabId;
 
     function finish(result, err) {
       if (settled) return;
@@ -241,13 +242,15 @@ function ensureOnFacebookHome(tab, targetUrl) {
     }
 
     function onUpdated(updatedTabId, changeInfo, updatedTab) {
-      if (updatedTabId !== tab.id || changeInfo.status !== 'complete') return;
+      if (updatedTabId !== newTabId || changeInfo.status !== 'complete') return;
       setTimeout(() => finish(updatedTab), 1500); // let the SPA content itself render
     }
     chrome.tabs.onUpdated.addListener(onUpdated);
 
-    timeoutHandle = setTimeout(() => finish(null, new Error('timed out loading Facebook')), 15000);
-    chrome.tabs.update(tab.id, { url: targetUrl });
+    chrome.tabs.create({ url: targetUrl, active: true }, (tab) => {
+      newTabId = tab.id;
+      timeoutHandle = setTimeout(() => finish(null, new Error('timed out loading Facebook')), 15000);
+    });
   });
 }
 
@@ -265,17 +268,13 @@ postPersonalBtn.addEventListener('click', async () => {
 
   postPersonalBtn.disabled = true;
   postStatusEl.textContent = 'Opening your profile…';
+  let result;
   try {
     const settings = await getSettings();
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) {
-      postStatusEl.textContent = 'No active tab found.';
-      return;
-    }
-    const readyTab = await ensureOnFacebookHome(tab, settings.personalPageUrl);
+    const readyTab = await openFacebookHomeTab(settings.personalPageUrl);
 
     postStatusEl.textContent = 'Opening the composer and typing…';
-    const result = await new Promise((resolve) => {
+    result = await new Promise((resolve) => {
       chrome.tabs.sendMessage(readyTab.id, { type: 'DRAFT_FEED_POST', text: existing.text }, (response) => {
         resolve(chrome.runtime.lastError ? { typed: false, reason: chrome.runtime.lastError.message } : response);
       });
@@ -284,10 +283,16 @@ postPersonalBtn.addEventListener('click', async () => {
     postStatusEl.textContent = result.typed
       ? 'Typed into the composer — review it, then click Post yourself on Facebook.'
       : `Failed: ${result.reason ?? 'unknown reason'}`;
-    await log('info', 'Content: 3A post-to-personal-page attempt', { dayKey: existing.dayKey, result });
   } catch (err) {
+    // Real gap found live (2026-09-01): this branch only ever set the status
+    // text, never logged anything — so a failure here (like the tab-
+    // clobbering bug that motivated this fix) left literally no trace in
+    // the log, making it much harder to diagnose. Now logged the same way
+    // the success path already was.
+    result = { typed: false, reason: err.message };
     postStatusEl.textContent = `Failed: ${err.message}`;
   } finally {
+    await log('info', 'Content: 3A post-to-personal-page attempt', { dayKey: existing.dayKey, result });
     postPersonalBtn.disabled = false;
   }
 });

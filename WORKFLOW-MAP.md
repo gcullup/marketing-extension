@@ -1191,7 +1191,34 @@ philosophy) — a public post is far more visible/permanent than a DM.
       today, so the real value here is avoiding a future code edit rather than offering a genuine
       choice — but it sets up the same pattern for 3B (business page), where choosing which Page to
       post to will be a real, meaningful setting.
-      **Pending: Greg re-tests Post to Personal Page now that it targets the right page.**
+      **Confirmed live (2026-09-01):** navigation now lands on the right page — but a second, more
+      serious bug surfaced right behind it, per Greg: clicking the button just made the Content page
+      itself vanish, replaced by facebook.com, with "nothing" happening after — no error, no status
+      update, and (tellingly) no log entry at all.
+
+      **Root cause found from that missing log entry:** the code reused whatever tab was currently
+      *active* (via `chrome.tabs.update`), on the assumption Greg would naturally end up looking at
+      it. But Greg clicks "Post to Personal Page" *from the Content page*, making the Content page's
+      own tab the active one — so the code navigated the Content page itself to Facebook, destroying
+      the very script that was supposed to keep running afterward (send the message, update the
+      status, log the result) the instant its own document unloaded. Silent by construction: the JS
+      context that would have logged the failure no longer existed once its tab navigated away.
+
+      **Fixed by never touching an existing tab at all:** `openFacebookHomeTab` always opens a
+      brand-new tab (made active/foreground, so Greg still ends up looking at it) instead of
+      navigating/reusing whatever happens to be active. Slightly less efficient if Facebook's
+      already open somewhere, but the only way to guarantee this action can't destroy the page it
+      was launched from, or any other tab Greg cares about. Verified in a live browser JS sandbox
+      that creating a new tab never touches/navigates an existing one, before wiring in.
+
+      **Second, related gap found and fixed in the same pass:** the click handler's `catch` block
+      only ever set the status text, never logged anything — exactly why the first failure left zero
+      trace. Moved the log call into a `finally` block so every outcome (success, a normal
+      business-logic failure, or a thrown exception) now gets logged, closing this diagnostic gap
+      for good regardless of what fails next time.
+
+      **Pending: Greg re-tests Post to Personal Page from the Content page and confirms it no longer
+      replaces that page, and that the composer actually opens with the draft typed in.**
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story
 - [ ] 3.5 3D — Post to a group Greg runs
