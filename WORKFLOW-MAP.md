@@ -1318,6 +1318,27 @@ on visible rows" reasoning. New `lib/contentLedger.js` functions: `getAllContent
 newest-first) and `deleteContent(dateKeys)` (deletes specific dates entirely). **Pending: Greg tries
 it live.**
 
+**Content angle rotation built (2026-09-01), per Greg:** three consecutive real short-form drafts
+all landed on nearly identical generic phrasing ("build your real estate empire," etc.). Root
+cause: an open-ended "write a post about this persona" prompt gives Claude nothing to differentiate
+one call from the next — the existing "avoid recycling" mechanism only helps once there's *approved*
+history to compare against, so it didn't explain (or fix) same-session repeats where nothing had
+been approved yet. Built a selectable **Angle** dropdown on the Content page: "None" (original
+behavior), 8 specific angles (common mistake, myth-busting, practical tip, industry fact, personal
+story, mindset/motivation, contrarian take, direct question — `CONTENT_ANGLES` in `lib/content.js`,
+exported as the single source of truth), or **"Surprise me"** — which hands Claude the whole angle
+list and lets it choose, reporting which one via a new `angleUsed` field on the `draft_post` tool
+schema so the choice stays auditable rather than a black box. Independent of the existing
+theme/modifier field — Greg can combine both, or use either alone. The resolved angle (whatever Greg
+picked, or whatever Claude reported in Surprise-me mode) is saved alongside the draft
+(`angleChoice`/`resolvedAngle` in the content ledger) and shown in the Content page's status message
+after Generate. Verified the three prompt-assembly branches (none/specific/surprise, including an
+invalid id falling back to "none" rather than crashing) in a live browser JS sandbox before wiring
+in. Also flagged, not a code change: the current "Target persona" Settings text was written for
+Step 1's friend-screening, not content/brand direction, and is fairly thin material for Claude to
+riff on — enriching it is a lever Greg can pull himself, no code change needed. **Pending: Greg
+tests whether picking specific angles (or Surprise me) actually produces more varied drafts.**
+
 ---
 
 ## Session Log

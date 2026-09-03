@@ -502,6 +502,16 @@ Threaded through `lib/content.js`'s `buildPrompt`/`callClaude`/`generateContent`
 parameter, fetched by `sidepanel/content.js` right before each Generate call — this module stays
 storage-agnostic, same convention as `targetPersona`/`dayTypeMap`.
 
+**Content angle rotation, per Greg (2026-09-01):** three consecutive real short-form drafts all
+landed on nearly identical generic phrasing — an open-ended "write a post about this persona" prompt
+gives Claude nothing to differentiate one call from the next, and the recycling-avoidance above only
+helps once there's *approved* history, which doesn't cover same-session repeats. A selectable
+**Angle** dropdown on the Content page offers "None," 8 specific angles (`CONTENT_ANGLES` in
+`lib/content.js`), or **"Surprise me"** — which hands Claude the whole list and lets it pick, then
+report which one it used via a new `angleUsed` field on the `draft_post` tool schema, so the choice
+stays auditable. Independent of the theme/modifier field. The resolved angle is saved alongside the
+draft (`angleChoice`/`resolvedAngle`) and shown in the status message after Generate.
+
 **3A (post to personal page) built, per Greg (2026-09-01) — pending live verification.** Real DOM
 verified against Greg's own composer: clicking the "What's on your mind, &lt;Name&gt;?" prompt opens
 a real modal popup (not an inline expand, not a corner popup like Messenger). The trigger has no

@@ -1,4 +1,4 @@
-import { resolveContentPlan, generateContent } from '../lib/content.js';
+import { resolveContentPlan, generateContent, CONTENT_ANGLES } from '../lib/content.js';
 import {
   getContentForDate,
   saveDraft,
@@ -18,6 +18,7 @@ const noPlanEl = document.getElementById('noPlan');
 const editorEl = document.getElementById('editor');
 const draftTextEl = document.getElementById('draftText');
 const modifierInputEl = document.getElementById('modifierInput');
+const angleSelectEl = document.getElementById('angleSelect');
 const charCountEl = document.getElementById('charCount');
 const generateBtn = document.getElementById('generateBtn');
 const copyBtn = document.getElementById('copyBtn');
@@ -102,6 +103,7 @@ async function init() {
     contentTypeSelectEl.value = existing.overrideType ?? '';
     draftTextEl.value = existing.text;
     modifierInputEl.value = existing.modifier ?? '';
+    angleSelectEl.value = existing.angleChoice ?? '';
     renderBadge(existing.state);
   }
   await refreshPlanDisplay();
@@ -132,6 +134,7 @@ generateBtn.addEventListener('click', async () => {
     const settings = await getSettings();
     const modifier = modifierInputEl.value;
     const overrideType = contentTypeSelectEl.value || null;
+    const angleChoice = angleSelectEl.value;
     // Per Greg's request (2026-09-01): feed Claude the last ~month of
     // approved posts so it doesn't recycle the same angle/opening too soon.
     // Excludes today's own date so re-generating an already-approved day
@@ -146,6 +149,7 @@ generateBtn.addEventListener('click', async () => {
       overrideType,
       dayTypeMap: settings.contentCalendar,
       recentContent,
+      angleChoice,
     });
     draftTextEl.value = result.content;
     updateCharCount();
@@ -156,6 +160,8 @@ generateBtn.addEventListener('click', async () => {
       text: result.content,
       modifier,
       overrideType,
+      angleChoice,
+      resolvedAngle: result.resolvedAngle,
     });
     renderBadge(record.state);
     // Per Greg's real observation (2026-09-01): Claude doesn't reliably hit
@@ -164,14 +170,18 @@ generateBtn.addEventListener('click', async () => {
     // after those retries, say so plainly rather than showing the same
     // "Drafted" message as a clean success (the red character count already
     // flags it visually, but this makes it unmissable).
+    const angleLabel = CONTENT_ANGLES.find((a) => a.id === result.resolvedAngle)?.shortLabel;
+    const angleNote = angleLabel ? ` (angle: ${angleLabel})` : '';
     statusEl.textContent = result.overLimit
       ? `Drafted, but still over the ${currentPlan.maxChars}-character limit after retrying — shorten it manually, or Regenerate.`
-      : 'Drafted — review and edit as needed, then Approve.';
+      : `Drafted${angleNote} — review and edit as needed, then Approve.`;
     await log('info', 'Content: draft generated', {
       dayKey: currentDayKey,
       contentType: currentPlan.type,
       modifier,
       overrideType,
+      angleChoice,
+      resolvedAngle: result.resolvedAngle,
       overLimit: result.overLimit,
       recentContentCount: recentContent.length,
     });

@@ -132,6 +132,22 @@
         box-sizing: border-box;
         margin-bottom: 12px;
       }
+      #angleLabel {
+        display: block;
+        font-size: 12px;
+        color: #555;
+        margin-bottom: 4px;
+      }
+      #angleSelect {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
     </style>
   </head>
   <body>
@@ -152,6 +168,20 @@
     <div id="editor" style="display: none;">
       <label id="modifierLabel" for="modifierInput">Theme / modifier (optional) — e.g. "Labor Day"</label>
       <input type="text" id="modifierInput" placeholder="Leave blank for no particular theme" />
+
+      <label id="angleLabel" for="angleSelect">Angle (optional) — steers what the post is actually about</label>
+      <select id="angleSelect">
+        <option value="">None</option>
+        <option value="surprise">Surprise me (Claude picks from the full list)</option>
+        <option value="mistake">Common mistake</option>
+        <option value="myth">Myth-busting</option>
+        <option value="tip">Practical tip</option>
+        <option value="fact">Industry fact</option>
+        <option value="story">Personal story</option>
+        <option value="mindset">Mindset / motivation</option>
+        <option value="contrarian">Contrarian take</option>
+        <option value="question">Direct question</option>
+      </select>
       <textarea id="draftText" placeholder="Click Generate to draft today's post…"></textarea>
       <div id="charCount"></div>
       <p>
