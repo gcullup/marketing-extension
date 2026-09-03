@@ -556,9 +556,26 @@ field, default the verified feed URL) replaces the hardcoded constant. Only one 
 for a personal profile today, so this mainly avoids a future code edit — the real payoff comes with
 3B (business page), where choosing which Page to post to is a genuine setting.
 
-**Not yet built:** 3B/3C/3D (business page, Story, group) — each will need its own real DOM
-verification, same discipline as everything else, especially Story and group posting which haven't
-been looked at yet at all.
+**3B (post to business page) started 2026-09-02, per Greg — scaffolding built, composer logic not
+yet verified live.** Added `businessPageUrl` to the Settings schema, deliberately left blank by
+default (unlike `personalPageUrl`, which has one real value) — Greg's own point when `personalPageUrl`
+was added: which Page to post to is genuinely per-install, with no sensible universal default.
+`sidepanel/content.js`'s duplicated-looking 3A click handler was extracted into one shared
+`postApprovedDraft({url, button, statusEl, logLabel, openingMessage})` helper, used by both the 3A
+and new 3B buttons, rather than copy-pasting the approve-gate/open-tab/send-message/log flow a
+second time. 3B refuses to run without both an approved draft and a configured `businessPageUrl`.
+
+Reuses the exact same `DRAFT_FEED_POST` message and `content/selectors.js` composer selectors as
+3A — deliberately, as a safe first attempt rather than a guessed new selector wired in blind. Those
+selectors were verified against Greg's **personal profile's** composer DOM, not a Business Page's,
+and Facebook Pages can show different composer trigger text (not necessarily "What's on your mind,
+{name}?"). If they don't match, `content/content.js`'s existing `waitForElement` timeout — the same
+mechanism already proven live by 3A's own real failure mode — surfaces a clean `Failed: ...` message
+rather than crashing or doing nothing silently, so this is safe for Greg to test as-is.
+
+**Not yet built/verified:** 3B's actual composer match on a real Business Page (pending Greg's live
+test — if it fails, the fix is pasting the real Business Page composer DOM here so a Page-specific
+selector can be added). 3C/3D (Story, group) haven't been looked at yet at all.
 
 ---
 
