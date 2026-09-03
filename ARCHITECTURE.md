@@ -213,11 +213,22 @@ Three genuinely distinct numbers — all three now built:
    **Bot-like timing gap found and fixed (2026-09-02), per Greg:** in the profile-page fallback
    (`sendViaProfilePage`, the dominant real path since queued people are routinely no longer
    rendered in the suggestions list), clicking Add Friend and closing the background tab
-   (`chrome.tabs.remove`) were happening in the same event-loop tick. Fixed with a randomized
-   ~1.5-2.5s pause between the click's response and the tab actually closing, so the interaction
-   doesn't read as instant-click-then-vanish. The identical pattern also exists in
-   `background/service-worker.js`'s `withProfileTab` (used for stale-request cancellation) but was
-   deliberately left untouched — out of scope for this specific ask.
+   (`chrome.tabs.remove`) were happening in the same event-loop tick. Fixed with a randomized pause
+   between the click's response and the tab actually closing, so the interaction doesn't read as
+   instant-click-then-vanish.
+
+   **Made configurable the same day, per Greg's follow-up:** a single hardcoded range would itself
+   become a detectable pattern if every close landed on the same cadence — added a new Settings
+   section, **"Advanced — don't touch unless you know what you're doing"**, holding
+   `advanced.tabCloseMinSeconds`/`advanced.tabCloseMaxSeconds` (default 2-8s). `sendViaProfilePage`
+   takes this range as a parameter now, not a hardcoded constant. This is the first Settings section
+   deliberately framed as "pacing/anti-detection tuning, not day-to-day configuration" — future
+   settings in this same spirit (e.g. the `withProfileTab` fix noted below, if picked up) belong
+   here too, rather than each inventing its own ad hoc field.
+
+   The identical click-then-immediate-close pattern also exists in `background/service-worker.js`'s
+   `withProfileTab` (used for stale-request cancellation) but was deliberately left untouched — out
+   of scope for this specific ask (a task chip was spawned for this).
 
 Concrete example from Greg: scan 80, 5 auto-queue, human approves 17 more from review → 22 added to
 the queue that day. 10 friend requests release Monday (this day's send cap), 10 more Tuesday, and

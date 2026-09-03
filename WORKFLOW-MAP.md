@@ -531,14 +531,25 @@ mechanically in Test Mode.
 happening in the very same event-loop tick — the response callback called `finish()` directly,
 which closes the tab immediately. Greg's concern: a real person lingers a moment after clicking,
 they don't vanish instantly, and Facebook may read the instant-close pattern as automation. Fixed
-by inserting a randomized ~1.5-2.5s pause between receiving the click result and actually calling
-`finish()` — the 15s give-up `timeoutHandle` is explicitly cleared as soon as a real result exists
-(not left to fire stale mid-pause). This is the dominant real-world path (per the note above: the
+by inserting a randomized pause between receiving the click result and actually calling `finish()`
+— the 15s give-up `timeoutHandle` is explicitly cleared as soon as a real result exists (not left
+to fire stale mid-pause). This is the dominant real-world path (per the note above: the
 profile-page fallback triggers on essentially every real send, not just when someone's missing from
-the list), so this pause now applies to nearly every real friend request the extension sends. The
-identical click-then-immediate-close pattern also exists in `background/service-worker.js`'s
+the list), so this pause now applies to nearly every real friend request the extension sends.
+
+**Made configurable the same day, per Greg's follow-up:** the pause was initially a hardcoded
+1.5-2.5s range; Greg's concern was that a single fixed range would itself become a detectable
+pattern if every close landed on roughly the same cadence, and asked for it to be tunable without a
+code change. Added a new Settings section, **"Advanced — don't touch unless you know what you're
+doing"** — `advanced.tabCloseMinSeconds`/`advanced.tabCloseMaxSeconds` (default 2-8s, a much wider
+default range than the original hardcoded value, per Greg's explicit "2-8 second" ask), validated
+min ≤ max the same way `timing.minDelaySeconds`/`maxDelaySeconds` already were. `sendViaProfilePage`
+now takes this range as a parameter rather than a hardcoded constant.
+
+The identical click-then-immediate-close pattern also exists in `background/service-worker.js`'s
 `withProfileTab` (used by the stale-request-cancellation flow) — not touched here since Greg scoped
-this ask to the Send Queue specifically; worth revisiting if the same concern applies there.
+this ask to the Send Queue specifically; worth revisiting if the same concern applies there (a task
+chip was spawned for this).
 
 - [~] 1.12 One real low-volume day — **started**: one real send confirmed working (Aaron Bihl).
       Not yet a full day of sustained real usage — that's still worth doing deliberately before

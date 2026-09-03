@@ -35,9 +35,10 @@ function sendMessageToTab(tabId, message) {
 // first real Send Queue attempt, not a rare edge case. Their profile URL
 // always works regardless of list state, so this opens it in a background
 // tab, waits for it to finish loading, clicks Add Friend there using the
-// separately-verified profile-page selector, then cleans up the tab either
-// way.
-function sendViaProfilePage(person, testMode) {
+// separately-verified profile-page selector, waits a caller-supplied
+// {minSeconds, maxSeconds} pause (Settings > Advanced), then cleans up the
+// tab either way.
+function sendViaProfilePage(person, testMode, tabCloseRange) {
   return new Promise((resolve) => {
     chrome.tabs.create({ url: person.profileUrl, active: false }, (tab) => {
       const tabId = tab.id;
@@ -67,9 +68,14 @@ function sendViaProfilePage(person, testMode) {
             // would linger a moment after clicking, not vanish instantly.
             // Clear the 15s give-up timer now that a real result exists (so
             // it can't fire a stale "timed out" finish() during this pause),
-            // then wait a randomized ~1.5-2.5s before actually closing.
+            // then wait a randomized pause (Settings > Advanced,
+            // tabCloseMinSeconds/tabCloseMaxSeconds — deliberately a range,
+            // not a single fixed pause, per Greg: every close landing on the
+            // same cadence would itself be a detectable pattern) before
+            // actually closing.
             clearTimeout(timeoutHandle);
-            const closeDelayMs = 1500 + Math.random() * 1000;
+            const { minSeconds, maxSeconds } = tabCloseRange;
+            const closeDelayMs = (minSeconds + Math.random() * (maxSeconds - minSeconds)) * 1000;
             setTimeout(() => finish(result), closeDelayMs);
           });
         }, 1500);
@@ -138,7 +144,10 @@ function renderCard(person, remaining) {
       statusEl.textContent = tab
         ? 'Not currently visible in the suggestions list — trying their profile page directly…'
         : 'No suggestions tab open — trying their profile page directly…';
-      result = await sendViaProfilePage(person, settings.testMode);
+      result = await sendViaProfilePage(person, settings.testMode, {
+        minSeconds: settings.advanced?.tabCloseMinSeconds ?? 2,
+        maxSeconds: settings.advanced?.tabCloseMaxSeconds ?? 8,
+      });
     }
 
     await log('info', 'Send Queue: friend request attempt', { name: person.name, result });

@@ -41,6 +41,11 @@ function toInt(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function toFloat(value, fallback) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function renderForm(s) {
   $('targetPersona').value = s.targetPersona ?? '';
   $('includeKeywords').value = keywordsToLines(s.includeKeywords);
@@ -86,6 +91,9 @@ function renderForm(s) {
   $('testMode').checked = s.testMode !== false;
   $('autoSend').checked = s.autoSend === true;
   $('autoSendWarning').style.display = $('autoSend').checked ? 'block' : 'none';
+
+  $('tabCloseMinSeconds').value = s.advanced?.tabCloseMinSeconds ?? 2;
+  $('tabCloseMaxSeconds').value = s.advanced?.tabCloseMaxSeconds ?? 8;
 }
 
 async function populate() {
@@ -142,6 +150,10 @@ function collectFromForm() {
     },
     testMode: $('testMode').checked,
     autoSend: $('autoSend').checked,
+    advanced: {
+      tabCloseMinSeconds: toFloat($('tabCloseMinSeconds').value, 2),
+      tabCloseMaxSeconds: toFloat($('tabCloseMaxSeconds').value, 8),
+    },
   };
 }
 
@@ -162,6 +174,11 @@ $('saveBtn').addEventListener('click', async () => {
   if (values.timing.minDelaySeconds > values.timing.maxDelaySeconds) {
     $('saveStatus').style.color = 'crimson';
     $('saveStatus').textContent = 'Min delay must not exceed max delay.';
+    return;
+  }
+  if (values.advanced.tabCloseMinSeconds > values.advanced.tabCloseMaxSeconds) {
+    $('saveStatus').style.color = 'crimson';
+    $('saveStatus').textContent = 'Tab-close pause: min must not exceed max.';
     return;
   }
   if (values.rejectFloor >= values.confidenceThreshold) {

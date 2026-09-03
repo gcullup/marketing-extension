@@ -284,6 +284,20 @@
       auto-send skips your review entirely.
     </p>
 
+    <h2>Advanced — don't touch unless you know what you're doing</h2>
+    <p class="hint">Pacing tweaks for anti-detection, not day-to-day settings. Defaults are sane; only change these if you understand what you're adjusting.</p>
+    <p class="hint">After clicking something in a background tab (e.g. Add Friend), how long to wait before closing that tab. A range (not a single fixed pause) avoids every close landing on the exact same cadence.</p>
+    <div class="two-col">
+      <div>
+        <label for="tabCloseMinSeconds">Pause before closing tab — min (sec)</label>
+        <input type="number" id="tabCloseMinSeconds" min="0" step="0.5" />
+      </div>
+      <div>
+        <label for="tabCloseMaxSeconds">Max (sec)</label>
+        <input type="number" id="tabCloseMaxSeconds" min="0" step="0.5" />
+      </div>
+    </div>
+
     <div>
       <button id="saveBtn">Save Settings</button>
       <button id="resetBtn" title="Repopulates this form with defaults — nothing is saved until you click Save Settings">Reset to Defaults</button>
