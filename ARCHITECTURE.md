@@ -605,7 +605,7 @@ first real click-through — the payoff of gathering real DOM for every selector
 trigger, the text box, and identifying-without-wiring the Share button) rather than guessing any
 of it. 3C (post to Story) is now proven live end to end.
 
-**3D (post to Group) built 2026-09-02, per Greg — pending live verification.** Posts whatever
+**3D (post to Group) built and confirmed live 2026-09-02, per Greg.** Posts whatever
 content is approved that day (same rule as 3A/3C).
 
 Real DOM gathered live from Greg's actual group page ("Bookkeeping for Real Estate Investors,"
@@ -629,8 +629,13 @@ identified but deliberately not stored/wired, same reasoning as 3A/3C.
 (!url)` guard that had been dropped when it was rewritten for 3C (whose URL is always a non-empty
 constant) — needed again now that `groupUrl` can genuinely be unset.
 
-**Not yet verified live** — every selector here came from Greg's real pasted DOM, not a guess, but
-nothing in this project is marked proven until it's actually been clicked through on the real page.
+**Confirmed live (2026-09-02):** Greg set `groupUrl` in Settings, approved a draft, and clicked
+"Post to Group" — "it worked." 3D (post to Group) is now proven live end to end.
+
+**Endpoint 3 (Step 3 — Content Creation) is now SIGNED OFF (2026-09-02).** All three working
+posting destinations (3A personal page, 3C Story, 3D group) are proven live, on top of the
+already-proven generation pipeline. 3B (business page) remains deliberately blocked by Greg's
+Facebook account configuration, not a code gap.
 
 ---
 

@@ -18,15 +18,12 @@ Update this file at the end of every working session.
   detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
   send are all built and confirmed against real data, including a fix for the daily message cap now
   being enforced live mid-session, not just at page load. Remaining before sign-off: 2.8 formal
-  sign-off. Endpoint 3 (Step 3 — Content Creation) — **started 2026-09-01**: the day-of-week content
-  generation pipeline (with content-recycling avoidance and a selectable/"Surprise me" angle
-  rotation) is proven live, and 3A (post to personal page) is now proven live end to end too, after
-  two real bugs found and fixed. **3B (business page) is blocked, not just unbuilt** — Greg's
-  Facebook account configuration doesn't allow posting directly to his business page, confirmed
-  2026-09-02; its button is disabled/"for future development," not pending a code fix. **3C (Story)
-  is now proven live end to end too (2026-09-02)** — worked on the first try, no bugs found, reusing
-  3A's proven tab-handling and Lexical-typing logic against real, verified Story-editor DOM. **3D
-  (group) built 2026-09-02**, from real DOM off Greg's own group page — pending his live test.
+  sign-off. **Endpoint 3 (Step 3 — Content Creation) — SIGNED OFF 2026-09-02.** The day-of-week
+  generation pipeline (content-recycling avoidance, selectable/"Surprise me" angle rotation,
+  code-enforced character limits) and all three working posting destinations — 3A personal page,
+  3C Story, 3D group — are proven live end to end. 3B (business page) is deliberately blocked by
+  Greg's Facebook account configuration, not a code gap; its button stays disabled/"for future
+  development."
 
 ---
 
@@ -1277,8 +1274,8 @@ philosophy) — a public post is far more visible/permanent than a DM.
       worked on the first try — "worked like a charm." No bugs found this time, unlike 3A — reusing
       3A's already-proven `openFacebookHomeTab` and `typeIntoLexicalEditor` against real, verified
       selectors (never guessed) paid off. 3C (post to Story) is now proven live end to end.
-- [~] 3.5 3D — Post to a group Greg runs (started 2026-09-02, per Greg) — **built, pending live
-      verification.** Posts whatever content is approved that day (same rule as 3A/3C).
+- [x] 3.5 3D — Post to a group Greg runs (started 2026-09-02, per Greg) — **proven live.** Posts
+      whatever content is approved that day (same rule as 3A/3C).
 
       Real DOM gathered live from Greg's actual "Bookkeeping for Real Estate Investors" group page
       (private, 141 members, Greg is admin). Unlike 3A/3C, clicking the "Write something..." prompt
@@ -1303,8 +1300,14 @@ philosophy) — a public post is far more visible/permanent than a DM.
       reintroduced `if (!url)` guard — dropped when it was last rewritten for 3C (whose URL is
       always a non-empty constant), needed again now that 3D's `groupUrl` can genuinely be blank.
 
-      **Next: Greg sets `groupUrl` in Settings, approves a draft, and clicks "Post to Group" live.**
-- [ ] 3.6 **ENDPOINT 3 SIGNED OFF**
+      **Confirmed live (2026-09-02):** Greg set `groupUrl` in Settings, approved a draft, and
+      clicked "Post to Group" — "it worked." 3D (post to Group) is now proven live end to end.
+- [x] 3.6 **ENDPOINT 3 SIGNED OFF** — all four Step 3 destinations (3A personal page, 3C Story, 3D
+      group) are proven live; 3B (business page) is deliberately blocked by an account limitation,
+      not a code gap, and its button stays disabled/"for future development." The generation
+      pipeline (day-of-week defaults, content-type override, theme/modifier, content-recycling
+      avoidance, selectable/"Surprise me" angle rotation, code-enforced character limits) was
+      already proven live before any of the posting destinations were built.
 
 ---
 
