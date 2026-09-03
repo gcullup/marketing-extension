@@ -210,6 +210,15 @@ Three genuinely distinct numbers — all three now built:
    in-flight send finishes — the wait between sends is checked every 500ms so Stop takes effect
    within about half a second, not up to 18s late.
 
+   **Bot-like timing gap found and fixed (2026-09-02), per Greg:** in the profile-page fallback
+   (`sendViaProfilePage`, the dominant real path since queued people are routinely no longer
+   rendered in the suggestions list), clicking Add Friend and closing the background tab
+   (`chrome.tabs.remove`) were happening in the same event-loop tick. Fixed with a randomized
+   ~1.5-2.5s pause between the click's response and the tab actually closing, so the interaction
+   doesn't read as instant-click-then-vanish. The identical pattern also exists in
+   `background/service-worker.js`'s `withProfileTab` (used for stale-request cancellation) but was
+   deliberately left untouched — out of scope for this specific ask.
+
 Concrete example from Greg: scan 80, 5 auto-queue, human approves 17 more from review → 22 added to
 the queue that day. 10 friend requests release Monday (this day's send cap), 10 more Tuesday, and
 so on — the queue keeps growing from ongoing scanning/reviewing even as it drains at the slower

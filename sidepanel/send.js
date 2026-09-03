@@ -59,7 +59,18 @@ function sendViaProfilePage(person, testMode) {
         // a moment more to actually render before looking for the button.
         setTimeout(() => {
           chrome.tabs.sendMessage(tabId, { type: 'CLICK_PROFILE_ADD_FRIEND', testMode }, (response) => {
-            finish(chrome.runtime.lastError ? { sent: false, reason: chrome.runtime.lastError.message } : response);
+            const result = chrome.runtime.lastError
+              ? { sent: false, reason: chrome.runtime.lastError.message }
+              : response;
+            // Real concern raised live (2026-09-02), per Greg: the click and
+            // the tab close were happening in the same tick — a real person
+            // would linger a moment after clicking, not vanish instantly.
+            // Clear the 15s give-up timer now that a real result exists (so
+            // it can't fire a stale "timed out" finish() during this pause),
+            // then wait a randomized ~1.5-2.5s before actually closing.
+            clearTimeout(timeoutHandle);
+            const closeDelayMs = 1500 + Math.random() * 1000;
+            setTimeout(() => finish(result), closeDelayMs);
           });
         }, 1500);
       }

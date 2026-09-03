@@ -3,7 +3,7 @@
 **Purpose:** single source of truth for what is built, what is next, and what is still undecided.
 Update this file at the end of every working session.
 
-- **Last updated:** 2026-09-02
+- **Last updated:** 2026-09-02 (evening)
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
 - **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
@@ -525,6 +525,20 @@ to Aaron Bihl via the profile-page fallback path — it worked. This is the firs
 extension has ever taken on Facebook; everything before this was Test Mode or read-only. The full
 pipeline (scan → AI screen → ledger → review → send) has now been proven true end to end, not just
 mechanically in Test Mode.
+
+**Bot-like timing gap found and fixed (2026-09-02), per Greg:** in `sendViaProfilePage`
+(`sidepanel/send.js`), the click on Add Friend and the tab close (`chrome.tabs.remove`) were
+happening in the very same event-loop tick — the response callback called `finish()` directly,
+which closes the tab immediately. Greg's concern: a real person lingers a moment after clicking,
+they don't vanish instantly, and Facebook may read the instant-close pattern as automation. Fixed
+by inserting a randomized ~1.5-2.5s pause between receiving the click result and actually calling
+`finish()` — the 15s give-up `timeoutHandle` is explicitly cleared as soon as a real result exists
+(not left to fire stale mid-pause). This is the dominant real-world path (per the note above: the
+profile-page fallback triggers on essentially every real send, not just when someone's missing from
+the list), so this pause now applies to nearly every real friend request the extension sends. The
+identical click-then-immediate-close pattern also exists in `background/service-worker.js`'s
+`withProfileTab` (used by the stale-request-cancellation flow) — not touched here since Greg scoped
+this ask to the Send Queue specifically; worth revisiting if the same concern applies there.
 
 - [~] 1.12 One real low-volume day — **started**: one real send confirmed working (Aaron Bihl).
       Not yet a full day of sustained real usage — that's still worth doing deliberately before
