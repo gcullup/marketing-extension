@@ -27,6 +27,14 @@ const statusEl = document.getElementById('status');
 const stateBadgeEl = document.getElementById('stateBadge');
 const postPersonalBtn = document.getElementById('postPersonalBtn');
 const postStatusEl = document.getElementById('postStatus');
+const postStoryBtn = document.getElementById('postStoryBtn');
+const postStoryStatusEl = document.getElementById('postStoryStatus');
+
+// Fixed Facebook system URL, not user-configurable — unlike personalPageUrl/
+// businessPageUrl (which genuinely vary per install), this is Facebook's own
+// story-creation entry point, the same for everyone. Matches the existing
+// SUGGESTIONS_URL pattern in sidepanel/panel.js.
+const STORY_CREATE_URL = 'https://www.facebook.com/stories/create';
 
 const today = new Date();
 let currentPlan = null;
@@ -254,39 +262,40 @@ function openFacebookHomeTab(targetUrl) {
   });
 }
 
-// 3A — post to personal page, per Greg's design (2026-09-01): assisted, not
-// automatic. Requires the draft to actually be Approved first (D6's review
-// gate) — re-checks the ledger directly rather than trusting whatever's
-// currently in the box, so this can't post something that was never
-// reviewed.
+// Shared by 3A (personal page) and 3C (Story) — per Greg's design
+// (2026-09-01 for 3A, 2026-09-02 for 3C), both are assisted, not automatic:
+// open the composer, type the approved draft, and stop, so Greg reviews
+// (attaches media/picks a background/font) and clicks Facebook's own
+// Post/Share button himself. Both re-check the ledger directly (not
+// whatever's currently in the box) so this can't post something that was
+// never reviewed (D6's review gate).
 //
 // (3B, business page, was scaffolded to share this same flow on 2026-09-02
 // but removed the same day: Greg's Facebook account configuration doesn't
 // allow posting directly to his business page. Its button stays in
 // content.html, disabled, labeled "for future development.")
-postPersonalBtn.addEventListener('click', async () => {
+async function postApprovedDraft({ url, messageType, button, statusEl, logLabel, openingMessage }) {
   const existing = await getContentForDate(today);
   if (!existing || existing.state !== CONTENT_STATES.APPROVED) {
-    postStatusEl.textContent = 'Approve the draft first — this only works on approved content.';
+    statusEl.textContent = 'Approve the draft first — this only works on approved content.';
     return;
   }
 
-  postPersonalBtn.disabled = true;
-  postStatusEl.textContent = 'Opening your profile…';
+  button.disabled = true;
+  statusEl.textContent = openingMessage;
   let result;
   try {
-    const settings = await getSettings();
-    const readyTab = await openFacebookHomeTab(settings.personalPageUrl);
+    const readyTab = await openFacebookHomeTab(url);
 
-    postStatusEl.textContent = 'Opening the composer and typing…';
+    statusEl.textContent = 'Opening the composer and typing…';
     result = await new Promise((resolve) => {
-      chrome.tabs.sendMessage(readyTab.id, { type: 'DRAFT_FEED_POST', text: existing.text }, (response) => {
+      chrome.tabs.sendMessage(readyTab.id, { type: messageType, text: existing.text }, (response) => {
         resolve(chrome.runtime.lastError ? { typed: false, reason: chrome.runtime.lastError.message } : response);
       });
     });
 
-    postStatusEl.textContent = result.typed
-      ? 'Typed into the composer — review it, then click Post yourself on Facebook.'
+    statusEl.textContent = result.typed
+      ? 'Typed into the composer — review it, then finish posting yourself on Facebook.'
       : `Failed: ${result.reason ?? 'unknown reason'}`;
   } catch (err) {
     // Real gap found live (2026-09-01): this branch only ever set the status
@@ -295,11 +304,38 @@ postPersonalBtn.addEventListener('click', async () => {
     // the log, making it much harder to diagnose. Now logged the same way
     // the success path already was.
     result = { typed: false, reason: err.message };
-    postStatusEl.textContent = `Failed: ${err.message}`;
+    statusEl.textContent = `Failed: ${err.message}`;
   } finally {
-    await log('info', 'Content: 3A post-to-personal-page attempt', { dayKey: existing.dayKey, result });
-    postPersonalBtn.disabled = false;
+    await log('info', logLabel, { dayKey: existing.dayKey, result });
+    button.disabled = false;
   }
+}
+
+postPersonalBtn.addEventListener('click', async () => {
+  const settings = await getSettings();
+  await postApprovedDraft({
+    url: settings.personalPageUrl,
+    messageType: 'DRAFT_FEED_POST',
+    button: postPersonalBtn,
+    statusEl: postStatusEl,
+    logLabel: 'Content: 3A post-to-personal-page attempt',
+    openingMessage: 'Opening your profile…',
+  });
+});
+
+// 3C — post to Story, per Greg's design (2026-09-02): assisted, same as 3A.
+// STORY_CREATE_URL is Facebook's own fixed entry point (not a Settings
+// field — unlike personalPageUrl/businessPageUrl, it doesn't vary per
+// install).
+postStoryBtn.addEventListener('click', async () => {
+  await postApprovedDraft({
+    url: STORY_CREATE_URL,
+    messageType: 'DRAFT_STORY_POST',
+    button: postStoryBtn,
+    statusEl: postStoryStatusEl,
+    logLabel: 'Content: 3C post-to-story attempt',
+    openingMessage: 'Opening the Story creator…',
+  });
 });
 
 init();

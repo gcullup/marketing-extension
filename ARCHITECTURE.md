@@ -569,7 +569,39 @@ from `sidepanel/content.js` entirely rather than left wired to a button nothing 
 disabled) since this is a "not right now," not a "never" — ready to pick back up if Greg's account
 configuration changes.
 
-**Not yet built:** 3C/3D (Story, group) haven't been looked at yet at all.
+**3C (post to Story) built 2026-09-02, per Greg — pending live verification.** Scope confirmed
+with Greg: posts whatever content is approved that day (same rule as 3A/3B), personal Story only —
+no business-Page Story support, matching 3B being blocked.
+
+Real DOM gathered live from `https://www.facebook.com/stories/create`, which lands directly on a
+picker with two cards ("Create a photo story" / "Create a text story") — no separate trigger
+button needed on the main feed first, unlike 3A/3B. Clicking the text-story card opens an editor
+(background/font/music pickers, a preview canvas) whose text box turned out to be **the same
+Lexical framework** as the DM and post composers (confirmed by the same `data-lexical-editor="true"`
+marker) — meant `content/act.js`'s existing `typeIntoLexicalEditor` needed zero changes, just a new
+caller. `content/selectors.js` gained `createTextStoryTrigger`
+(`div[role="button"][aria-label="Create a text story"]`) and `storyTextInput`
+(`div[aria-label="Story text"][contenteditable="true"][role="textbox"]`) — a third distinct
+identifying-attribute pattern for a Lexical composer, alongside `aria-placeholder` (post composer)
+and a dynamic-suffix `aria-label` (DM composer). The real "Share to story" button
+(`aria-label="Share to story"`) was confirmed but deliberately NOT stored as a selector, since 3C
+never clicks it — same assisted design as 3A/3B.
+
+`content/act.js` gained `clickCreateTextStoryTrigger()`/`typeStoryText(text)`, mirroring 3A's
+`clickPostComposerTrigger`/`typePostDraft`. `content/content.js` gained a `DRAFT_STORY_POST`
+handler, same shape as `DRAFT_FEED_POST`. `sidepanel/content.js`'s 3A click handler was extracted
+into a shared `postApprovedDraft({url, messageType, button, statusEl, logLabel, openingMessage})`
+helper, now used by both 3A and 3C (this abstraction was reverted when 3B tried it with only one
+real caller — now genuinely justified with two). `STORY_CREATE_URL` is a plain constant, not a
+Settings field — it's Facebook's own fixed entry point, same for every install, unlike
+`personalPageUrl`/`businessPageUrl` which vary per-install.
+
+Reuses 3A's already-proven `openFacebookHomeTab` (always opens a brand-new tab, never
+navigates/reuses an existing one — the fix for the tab-clobbering bug) unchanged. **Not yet
+verified live** — every selector here came from Greg's real pasted DOM, not a guess, but nothing in
+this project is marked proven until it's actually been clicked through on the real page.
+
+**Not yet built:** 3D (group) hasn't been looked at yet at all.
 
 ---
 

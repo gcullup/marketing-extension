@@ -205,4 +205,24 @@
     if (!composer) return { typed: false, reason: 'post composer input not found' };
     return typeIntoLexicalEditor(composer, text);
   };
+
+  // Opens the text-story editor for Step 3's 3C (post to Story), from
+  // facebook.com/stories/create's picker screen. Not gated by Test Mode,
+  // same reasoning as the other trigger-clicks in this file — opening a UI
+  // isn't the policed action.
+  MKT.act.clickCreateTextStoryTrigger = function () {
+    const trigger = document.querySelector(MKT.selectors.createTextStoryTrigger);
+    if (!trigger) return { opened: false, reason: 'create text story trigger not found' };
+    trigger.click();
+    return { opened: true };
+  };
+
+  // Types the approved draft into the Story text box and stops there — same
+  // assisted design as typePostDraft: Greg picks a background/font and clicks
+  // Facebook's own "Share to story" button himself.
+  MKT.act.typeStoryText = async function (text) {
+    const composer = document.querySelector(MKT.selectors.storyTextInput);
+    if (!composer) return { typed: false, reason: 'story text input not found' };
+    return typeIntoLexicalEditor(composer, text);
+  };
 })();

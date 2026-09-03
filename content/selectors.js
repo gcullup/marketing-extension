@@ -94,6 +94,30 @@
     // Add Friend/Cancel Request/the DM composer.
     postComposerInput: 'div[contenteditable="true"][role="textbox"][aria-placeholder^="What\'s on your mind,"]',
 
+    // Confirmed live (2026-09-02), from Greg's real facebook.com/stories/create
+    // screen, for Step 3's 3C (post to Story). That URL lands directly on a
+    // picker with two cards, "Create a photo story" and "Create a text
+    // story" — this is the latter, an aria-label'd clickable div (no
+    // dynamic-name suffix this time, so an exact match is enough).
+    createTextStoryTrigger: 'div[role="button"][aria-label="Create a text story"]',
+
+    // Confirmed live (2026-09-02), same session: clicking the trigger above
+    // opens the text-story editor (background/font pickers, music, etc.).
+    // The actual text box is Lexical (`data-lexical-editor="true"`, same
+    // framework as the DM and post composers) but identified by
+    // `aria-label="Story text"` — a third distinct attribute pattern
+    // (aria-label here, aria-placeholder for the post composer, a
+    // dynamic-suffix aria-label for the DM composer), confirmed by directly
+    // comparing all three real elements.
+    storyTextInput: 'div[aria-label="Story text"][contenteditable="true"][role="textbox"]',
+
+    // NOT stored here on purpose: the real "Share to story" button has
+    // aria-label="Share to story", confirmed live in the same session — but
+    // 3C never clicks it (same assisted design as 3A/3B: type the text and
+    // stop, Greg reviews and shares it himself), so no selector for it is
+    // needed or wired in. Noted here only so nothing gets added later that
+    // accidentally matches it.
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).

@@ -316,6 +316,29 @@
       })();
       return true;
     }
+    if (message?.type === 'DRAFT_STORY_POST') {
+      // Step 3's 3C (post to Story) — assisted, same design as 3A/3B: opens
+      // the text-story editor and types the approved draft in, then stops.
+      // Greg picks a background/font and clicks "Share to story" himself.
+      // Caller (sidepanel/content.js) is responsible for making sure this
+      // tab is already on facebook.com/stories/create, where the trigger
+      // exists, before sending this message.
+      (async () => {
+        const openResult = MKT.act.clickCreateTextStoryTrigger();
+        if (!openResult.opened) {
+          sendResponse({ typed: false, reason: openResult.reason });
+          return;
+        }
+        try {
+          await waitForElement(MKT.selectors.storyTextInput, 'the story text editor to open');
+        } catch (err) {
+          sendResponse({ typed: false, reason: err.message });
+          return;
+        }
+        sendResponse(await MKT.act.typeStoryText(message.text));
+      })();
+      return true;
+    }
     return false;
   });
 })();

@@ -23,8 +23,9 @@ Update this file at the end of every working session.
   rotation) is proven live, and 3A (post to personal page) is now proven live end to end too, after
   two real bugs found and fixed. **3B (business page) is blocked, not just unbuilt** — Greg's
   Facebook account configuration doesn't allow posting directly to his business page, confirmed
-  2026-09-02; its button is disabled/"for future development," not pending a code fix. 3C/3D (Story,
-  group) aren't built yet.
+  2026-09-02; its button is disabled/"for future development," not pending a code fix. **3C (Story)
+  built 2026-09-02**, reusing 3A's proven tab-handling and Lexical-typing logic against real,
+  verified Story-editor DOM — pending Greg's live test. 3D (group) isn't built yet.
 
 ---
 
@@ -1237,7 +1238,45 @@ philosophy) — a public post is far more visible/permanent than a DM.
       a button nothing can ever click). The `businessPageUrl` Settings field was deliberately left in
       place, with its hint text explaining why the button is disabled — this is a genuine "not right
       now" rather than "never," so the setting stays ready if Greg's account configuration changes.
-- [ ] 3.4 3C — Post to Story
+- [~] 3.4 3C — Post to Story (started 2026-09-02, per Greg) — **built, pending live verification.**
+      Scope confirmed with Greg: 3C posts whatever content is approved that day (same rule as
+      3A/3B), personal Story only (no business-Page Story support, matching 3B being blocked).
+
+      Real DOM gathered live from `https://www.facebook.com/stories/create` — that URL lands
+      directly on a picker with two cards, "Create a photo story" and "Create a text story."
+      Clicking the text-story card opens an editor (background/font/music pickers, a preview
+      canvas) whose actual text box turned out to be the **same Lexical framework** as the DM and
+      post composers (`data-lexical-editor="true"`) — good news, meant the existing
+      `typeIntoLexicalEditor` helper in `content/act.js` needed zero changes, just a new caller.
+
+      Added to `content/selectors.js`: `createTextStoryTrigger`
+      (`div[role="button"][aria-label="Create a text story"]`, exact match, no dynamic-name suffix
+      needed) and `storyTextInput` (`div[aria-label="Story text"][contenteditable="true"]
+      [role="textbox"]`) — a third distinct identifying attribute pattern, alongside
+      `aria-placeholder` for the post composer and a dynamic-suffix `aria-label` for the DM
+      composer. The real "Share to story" button's `aria-label="Share to story"` was also
+      confirmed but deliberately NOT stored as a selector — 3C never clicks it, same assisted
+      design as 3A/3B (type the text and stop, Greg picks a background/font/music and shares it
+      himself).
+
+      `content/act.js` gained `clickCreateTextStoryTrigger()` and `typeStoryText(text)`, mirroring
+      3A's `clickPostComposerTrigger`/`typePostDraft`. `content/content.js` gained a
+      `DRAFT_STORY_POST` message handler, same shape as `DRAFT_FEED_POST`: click trigger, wait for
+      the text box via the existing `waitForElement`, type, stop.
+
+      `sidepanel/content.js`'s 3A click handler was extracted into a shared
+      `postApprovedDraft({url, messageType, button, statusEl, logLabel, openingMessage})` helper —
+      this time genuinely justified (two real callers, 3A and 3C, not the single-caller case that
+      got reverted for 3B) — used by both the "Post to Personal Page" and new "Post to Story"
+      buttons. `STORY_CREATE_URL` is a plain constant (not a Settings field, unlike
+      `personalPageUrl`/`businessPageUrl`) since it's Facebook's own fixed entry point, the same
+      for every install — matches the existing `SUGGESTIONS_URL` pattern in `sidepanel/panel.js`.
+
+      **Next: Greg approves a draft and clicks "Post to Story" live.** Since this reuses 3A's
+      already-proven `openFacebookHomeTab` (new-tab-only, never navigates/reuses an existing tab)
+      and `typeIntoLexicalEditor`, and every selector here was verified against real DOM (not
+      guessed), this should work on the first try — but per this project's standing discipline nothing
+      is marked verified until Greg confirms it live.
 - [ ] 3.5 3D — Post to a group Greg runs
 - [ ] 3.6 **ENDPOINT 3 SIGNED OFF**
 
