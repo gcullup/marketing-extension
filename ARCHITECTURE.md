@@ -675,11 +675,19 @@ long-form draft that made it all the way to the actual Facebook composer:
    in `lib/content.js`, applied to every content plan: avoid em dashes, semicolons, the "it's not
    just X, it's Y" construction, and opening multiple paragraphs with a rhetorical question; vary
    sentence length naturally. Written out as "em dash" in the instruction text (not the literal
-   character), so the instruction doesn't itself demonstrate the thing it bans. Deliberately **not**
-   code-enforced (unlike the character-limit retry loop) — if this instruction turns out as
-   unreliable as the character-count one did, the next step would be a code-level find/replace on
-   Claude's output, following the same "measure and enforce in code, don't just ask nicely" lesson —
-   not applied preemptively since it hasn't been observed failing yet.
+   character), so the instruction doesn't itself demonstrate the thing it bans.
+
+   **Confirmed live the same day: the prompt instruction alone did NOT reliably work** — Greg's very
+   next real draft still came back with at least two em dashes. Same lesson already learned the hard
+   way with character limits: asking nicely in the prompt isn't enough, measure and enforce in code.
+   Unlike the character-limit case, there's nothing worth "retrying" for — a plain mechanical
+   substitution is deterministic and always correct, so `callClaude` now runs a new `stripEmDashes()`
+   on every response regardless of the prompt's outcome, replacing em/en dashes (spaced or unspaced)
+   with a plain hyphen surrounded by spaces (`" - "`). A straight character swap rather than a comma
+   or period specifically to avoid guessing at sentence structure — that would risk an awkward comma
+   splice or a capitalization mismatch, where a character swap changes zero grammar/meaning, only the
+   specific character being flagged. Applied before the character-limit retry loop measures length,
+   so that check always reflects the actual final text.
 
 ---
 

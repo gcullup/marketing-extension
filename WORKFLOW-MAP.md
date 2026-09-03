@@ -1358,11 +1358,18 @@ long-form draft that made it all the way to the actual Facebook composer:
    entirely, avoid semicolons, avoid the "it's not just X, it's Y" construction, avoid opening more
    than one paragraph with a rhetorical question, and vary sentence length naturally. Written out
    as "em dash" in the instruction text itself, not the actual character, so the instruction isn't
-   an example of the thing it bans. **Not code-enforced** (unlike the character-limit retry loop) —
-   if em dashes still slip through in practice despite the instruction, the next step would be a
-   code-level find/replace on Claude's output, mirroring how the character-limit lesson
-   ("asking nicely doesn't reliably work — measure and enforce in code") was eventually applied
-   there; not done preemptively here since it hasn't been observed failing yet.
+   an example of the thing it bans.
+
+   **Confirmed live the same day: the prompt instruction alone did NOT work** — Greg's very next
+   real draft still came back with at least two em dashes, same "asking nicely doesn't reliably
+   work" lesson already learned with character limits. **Fixed with code-level enforcement**, same
+   as that lesson taught: `callClaude` now runs every response through a new `stripEmDashes()`
+   regardless of the prompt's outcome, replacing em/en dashes (spaced or unspaced, e.g. both
+   "word — word" and "word—word") with a plain hyphen surrounded by spaces. Deliberately a straight
+   character swap rather than a comma or period substitution — those would require guessing at
+   sentence structure and risk an awkward comma splice or capitalization mismatch, where a character
+   swap changes zero grammar/meaning, only the specific character being flagged. Applied before the
+   character-limit retry loop measures length, so that check always reflects the real final text.
 
 ---
 
