@@ -539,6 +539,10 @@ fixed a related gap the missing log entry exposed: the click handler's `catch` b
 the status text, never logged — moved the log call into a `finally` so every outcome (success,
 business-logic failure, or thrown exception) is now recorded.
 
+**Confirmed live (2026-09-01):** Greg re-tested from the Content page — a new tab opens, the
+Content page stays put, and the composer opens with the draft typed in. 3A (post to personal
+page) is now proven end to end for the first time.
+
 The char-by-char Lexical-typing logic (settle delay, refocus retry, human cadence) was extracted
 from the DM composer into a shared `typeIntoLexicalEditor(composer, text)` in `content/act.js`, used
 by both the DM send and this new `typePostDraft` — avoids two near-identical copies, and any future

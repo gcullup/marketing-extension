@@ -10,16 +10,18 @@ Update this file at the end of every working session.
   2026-08-31). Remaining before formal sign-off: 1.11 golden-set eval, 1.12 a full real
   low-volume day (one real send so far, not yet a full day). **Discovery Batch rebuilt on
   `chrome.alarms` (2026-09-01)** after MV3 hazard #2 was actually confirmed live (a real batch
-  silently died mid-run) — built, not yet live-verified; see the test checklist in Phase 1 below and
-  ARCHITECTURE.md hazard #2.
+  silently died mid-run) — **confirmed live**: a full unattended run to natural list-exhaustion, and
+  a manual Stop, both worked; still pending a run that actually hits the configured daily limit and a
+  genuine forced service-worker kill specifically (see ARCHITECTURE.md hazard #2).
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
   pending. Endpoint 2 (Step 9 — greeting DM) — **proven live end to end 2026-09-01**: acceptance
   detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
   send are all built and confirmed against real data, including a fix for the daily message cap now
   being enforced live mid-session, not just at page load. Remaining before sign-off: 2.8 formal
   sign-off. Endpoint 3 (Step 3 — Content Creation) — **started 2026-09-01**: the day-of-week content
-  generation pipeline and review page are built, pending Greg's first real test; the four posting
-  actions (3A-3D) aren't built yet.
+  generation pipeline (with content-recycling avoidance and a selectable/"Surprise me" angle
+  rotation) is proven live, and 3A (post to personal page) is now proven live end to end too, after
+  two real bugs found and fixed. 3B/3C/3D (business page, Story, group) aren't built yet.
 
 ---
 
@@ -1150,8 +1152,9 @@ philosophy) — a public post is far more visible/permanent than a DM.
       (window filtering, approved-only, today-exclusion) and the resulting prompt shape in a live
       browser JS sandbox before wiring in. **Pending: Greg confirms drafts actually avoid repeating
       recent content once there's enough approved history to test against.**
-- [~] 3.2 3A — Post to personal page (assisted, per Greg's explicit choice, 2026-09-01) — **built,
-      pending live verification.** Real DOM verified against Greg's own personal-page composer:
+- [x] 3.2 3A — Post to personal page (assisted, per Greg's explicit choice, 2026-09-01) — **proven
+      live end to end**, after two real bugs found and fixed along the way. Real DOM verified
+      against Greg's own personal-page composer:
       clicking the "What's on your mind, &lt;Name&gt;?" prompt opens a real modal popup (not an
       inline expand, not a corner popup like the Messenger composer). The trigger has no aria-label
       of its own — matched by visible text (`MKT.patterns.postComposerTriggerText`,
@@ -1217,8 +1220,9 @@ philosophy) — a public post is far more visible/permanent than a DM.
       business-logic failure, or a thrown exception) now gets logged, closing this diagnostic gap
       for good regardless of what fails next time.
 
-      **Pending: Greg re-tests Post to Personal Page from the Content page and confirms it no longer
-      replaces that page, and that the composer actually opens with the draft typed in.**
+      **Confirmed live (2026-09-01):** Greg re-tested from the Content page — a new tab opens, the
+      Content page stays put, and the composer opens with the draft typed in. 3A (post to personal
+      page) is now proven end to end for the first time.
 - [ ] 3.3 3B — Post to business page
 - [ ] 3.4 3C — Post to Story
 - [ ] 3.5 3D — Post to a group Greg runs
