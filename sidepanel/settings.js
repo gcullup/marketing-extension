@@ -78,6 +78,7 @@ function renderForm(s) {
   $('recentContentLookbackDays').value = s.recentContentLookbackDays ?? 30;
   $('personalPageUrl').value = s.personalPageUrl ?? 'https://www.facebook.com/';
   $('businessPageUrl').value = s.businessPageUrl ?? '';
+  $('groupUrl').value = s.groupUrl ?? '';
 
   $('apiKey').value = s.claude?.apiKey ?? '';
   $('model').value = s.claude?.model ?? '';
@@ -134,6 +135,7 @@ function collectFromForm() {
     recentContentLookbackDays: toInt($('recentContentLookbackDays').value, 30),
     personalPageUrl: $('personalPageUrl').value.trim() || 'https://www.facebook.com/',
     businessPageUrl: $('businessPageUrl').value.trim(),
+    groupUrl: $('groupUrl').value.trim(),
     claude: {
       apiKey: $('apiKey').value,
       model: $('model').value.trim(),

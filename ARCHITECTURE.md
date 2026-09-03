@@ -605,7 +605,32 @@ first real click-through — the payoff of gathering real DOM for every selector
 trigger, the text box, and identifying-without-wiring the Share button) rather than guessing any
 of it. 3C (post to Story) is now proven live end to end.
 
-**Not yet built:** 3D (group) hasn't been looked at yet at all.
+**3D (post to Group) built 2026-09-02, per Greg — pending live verification.** Posts whatever
+content is approved that day (same rule as 3A/3C).
+
+Real DOM gathered live from Greg's actual group page ("Bookkeeping for Real Estate Investors,"
+private, 141 members, Greg admin). Notably different from 3A/3C: clicking the "Write something..."
+prompt expands the composer **inline on the same page**, not a modal popup (3A) or a separate
+screen (3C) — but still the same Lexical framework underneath. The trigger's text is static
+("Write something...", presumably identical across every group) rather than the personal profile's
+dynamic "What's on your mind, {name}?", so an exact-match pattern works with no wildcard needed.
+
+`content/selectors.js` gained `groupPostComposerInput`
+(`div[contenteditable="true"][role="textbox"][aria-placeholder="Write something..."]`) and pattern
+`groupComposerTriggerText` (`/^Write something\.\.\.$/`), matched the same way as
+`postComposerTriggerText` — scanned across all `[role="button"]` elements by trimmed textContent,
+since this trigger has no aria-label of its own. The real Post button (`aria-label="Post"`) was
+identified but deliberately not stored/wired, same reasoning as 3A/3C.
+
+`content/act.js` gained `clickGroupComposerTrigger()`/`typeGroupPostDraft(text)`.
+`content/content.js` gained a `DRAFT_GROUP_POST` handler, same shape as the other two. Added
+`groupUrl` to the Settings schema — blank by default, genuinely per-install (and per-group) like
+`businessPageUrl`. `sidepanel/content.js`'s shared `postApprovedDraft` helper got back an `if
+(!url)` guard that had been dropped when it was rewritten for 3C (whose URL is always a non-empty
+constant) — needed again now that `groupUrl` can genuinely be unset.
+
+**Not yet verified live** — every selector here came from Greg's real pasted DOM, not a guess, but
+nothing in this project is marked proven until it's actually been clicked through on the real page.
 
 ---
 

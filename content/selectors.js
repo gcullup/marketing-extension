@@ -118,6 +118,15 @@
     // needed or wired in. Noted here only so nothing gets added later that
     // accidentally matches it.
 
+    // Confirmed live (2026-09-02), for Step 3's 3D (post to Group), from
+    // Greg's real "Bookkeeping for Real Estate Investors" group page:
+    // clicking the group's "Write something..." prompt expands an inline
+    // composer on the same page (no modal popup, unlike 3A) — same Lexical
+    // framework as everywhere else. Static text ("Write something..."),
+    // same for every group, unlike the personal profile's dynamic
+    // "What's on your mind, {name}?" — an exact match is enough.
+    groupPostComposerInput: 'div[contenteditable="true"][role="textbox"][aria-placeholder="Write something..."]',
+
     // TODO Phase 1: no reliable container selector confirmed yet for "one
     // candidate row" as a whole (needed to associate a name link with its
     // Add Friend button, and to iterate the left-pane list in order).
@@ -142,5 +151,12 @@
     // popup, which does — `aria-label="Post"`) — only its own visible text
     // identifies it, same reasoning as mutualFriendsCount above.
     postComposerTriggerText: /^What's on your mind, .+\?$/,
+    // Confirmed live (2026-09-02), from Greg's real group page: the
+    // "Write something..." trigger that expands the inline group composer
+    // has no aria-label of its own either, same reasoning as
+    // postComposerTriggerText above — but this text is static (same on
+    // every group), unlike the personal profile's dynamic name suffix, so
+    // no wildcard is needed.
+    groupComposerTriggerText: /^Write something\.\.\.$/,
   };
 })();

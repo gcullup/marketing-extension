@@ -225,4 +225,26 @@
     if (!composer) return { typed: false, reason: 'story text input not found' };
     return typeIntoLexicalEditor(composer, text);
   };
+
+  // Opens the group's inline post composer for Step 3's 3D (post to Group).
+  // Matched by visible text (MKT.patterns.groupComposerTriggerText), same
+  // reasoning as clickPostComposerTrigger — this trigger has no aria-label
+  // of its own. Not gated by Test Mode: opening a UI isn't the policed
+  // action.
+  MKT.act.clickGroupComposerTrigger = function () {
+    const buttons = [...document.querySelectorAll('[role="button"]')];
+    const trigger = buttons.find((b) => MKT.patterns.groupComposerTriggerText.test(b.textContent.trim()));
+    if (!trigger) return { opened: false, reason: 'group composer trigger not found' };
+    trigger.click();
+    return { opened: true };
+  };
+
+  // Types the approved draft into the group's post composer and stops there
+  // — same assisted design as typePostDraft/typeStoryText: Greg reviews and
+  // clicks Facebook's own Post button himself.
+  MKT.act.typeGroupPostDraft = async function (text) {
+    const composer = document.querySelector(MKT.selectors.groupPostComposerInput);
+    if (!composer) return { typed: false, reason: 'group post composer input not found' };
+    return typeIntoLexicalEditor(composer, text);
+  };
 })();

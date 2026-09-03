@@ -339,6 +339,29 @@
       })();
       return true;
     }
+    if (message?.type === 'DRAFT_GROUP_POST') {
+      // Step 3's 3D (post to Group) — assisted, same design as 3A/3C: opens
+      // the group's inline post composer and types the approved draft in,
+      // then stops. Greg reviews and clicks Facebook's own Post button
+      // himself. Caller (sidepanel/content.js) is responsible for making
+      // sure this tab is already on the target group's page before sending
+      // this message.
+      (async () => {
+        const openResult = MKT.act.clickGroupComposerTrigger();
+        if (!openResult.opened) {
+          sendResponse({ typed: false, reason: openResult.reason });
+          return;
+        }
+        try {
+          await waitForElement(MKT.selectors.groupPostComposerInput, 'the group post composer to open');
+        } catch (err) {
+          sendResponse({ typed: false, reason: err.message });
+          return;
+        }
+        sendResponse(await MKT.act.typeGroupPostDraft(message.text));
+      })();
+      return true;
+    }
     return false;
   });
 })();

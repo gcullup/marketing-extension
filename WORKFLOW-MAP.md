@@ -25,8 +25,8 @@ Update this file at the end of every working session.
   Facebook account configuration doesn't allow posting directly to his business page, confirmed
   2026-09-02; its button is disabled/"for future development," not pending a code fix. **3C (Story)
   is now proven live end to end too (2026-09-02)** — worked on the first try, no bugs found, reusing
-  3A's proven tab-handling and Lexical-typing logic against real, verified Story-editor DOM. 3D
-  (group) isn't built yet.
+  3A's proven tab-handling and Lexical-typing logic against real, verified Story-editor DOM. **3D
+  (group) built 2026-09-02**, from real DOM off Greg's own group page — pending his live test.
 
 ---
 
@@ -1277,7 +1277,33 @@ philosophy) — a public post is far more visible/permanent than a DM.
       worked on the first try — "worked like a charm." No bugs found this time, unlike 3A — reusing
       3A's already-proven `openFacebookHomeTab` and `typeIntoLexicalEditor` against real, verified
       selectors (never guessed) paid off. 3C (post to Story) is now proven live end to end.
-- [ ] 3.5 3D — Post to a group Greg runs
+- [~] 3.5 3D — Post to a group Greg runs (started 2026-09-02, per Greg) — **built, pending live
+      verification.** Posts whatever content is approved that day (same rule as 3A/3C).
+
+      Real DOM gathered live from Greg's actual "Bookkeeping for Real Estate Investors" group page
+      (private, 141 members, Greg is admin). Unlike 3A/3C, clicking the "Write something..." prompt
+      expands the composer **inline on the same page**, not a modal popup or a separate screen —
+      but it's still the same Lexical framework as everywhere else. The trigger's text is static
+      ("Write something...", identical on presumably every group) rather than the personal
+      profile's dynamic "What's on your mind, {name}?", so an exact-match pattern is enough — no
+      wildcard needed.
+
+      Added to `content/selectors.js`: `groupPostComposerInput`
+      (`div[contenteditable="true"][role="textbox"][aria-placeholder="Write something..."]`) and a
+      new pattern `groupComposerTriggerText` (`/^Write something\.\.\.$/`), matched the same way as
+      `postComposerTriggerText` — searched across all `[role="button"]` elements by trimmed
+      textContent, since this trigger has no aria-label of its own either. The real Post button
+      (`aria-label="Post"`) was identified but not stored/wired, same reasoning as 3A/3C.
+
+      `content/act.js` gained `clickGroupComposerTrigger()`/`typeGroupPostDraft(text)`.
+      `content/content.js` gained a `DRAFT_GROUP_POST` handler, same shape as `DRAFT_FEED_POST`/
+      `DRAFT_STORY_POST`. Added `groupUrl` to the Settings schema — blank by default, genuinely
+      per-install (and per-group) like `businessPageUrl`, unlike `STORY_CREATE_URL`'s fixed
+      constant. `sidepanel/content.js`'s shared `postApprovedDraft` helper (built for 3A/3C) got a
+      reintroduced `if (!url)` guard — dropped when it was last rewritten for 3C (whose URL is
+      always a non-empty constant), needed again now that 3D's `groupUrl` can genuinely be blank.
+
+      **Next: Greg sets `groupUrl` in Settings, approves a draft, and clicks "Post to Group" live.**
 - [ ] 3.6 **ENDPOINT 3 SIGNED OFF**
 
 ---

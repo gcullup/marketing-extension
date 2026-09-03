@@ -29,6 +29,8 @@ const postPersonalBtn = document.getElementById('postPersonalBtn');
 const postStatusEl = document.getElementById('postStatus');
 const postStoryBtn = document.getElementById('postStoryBtn');
 const postStoryStatusEl = document.getElementById('postStoryStatus');
+const postGroupBtn = document.getElementById('postGroupBtn');
+const postGroupStatusEl = document.getElementById('postGroupStatus');
 
 // Fixed Facebook system URL, not user-configurable — unlike personalPageUrl/
 // businessPageUrl (which genuinely vary per install), this is Facebook's own
@@ -262,13 +264,13 @@ function openFacebookHomeTab(targetUrl) {
   });
 }
 
-// Shared by 3A (personal page) and 3C (Story) — per Greg's design
-// (2026-09-01 for 3A, 2026-09-02 for 3C), both are assisted, not automatic:
-// open the composer, type the approved draft, and stop, so Greg reviews
-// (attaches media/picks a background/font) and clicks Facebook's own
-// Post/Share button himself. Both re-check the ledger directly (not
-// whatever's currently in the box) so this can't post something that was
-// never reviewed (D6's review gate).
+// Shared by 3A (personal page), 3C (Story), and 3D (Group) — per Greg's
+// design (2026-09-01 for 3A, 2026-09-02 for 3C/3D), all three are assisted,
+// not automatic: open the composer, type the approved draft, and stop, so
+// Greg reviews (attaches media/picks a background/font) and clicks
+// Facebook's own Post/Share button himself. All three re-check the ledger
+// directly (not whatever's currently in the box) so this can't post
+// something that was never reviewed (D6's review gate).
 //
 // (3B, business page, was scaffolded to share this same flow on 2026-09-02
 // but removed the same day: Greg's Facebook account configuration doesn't
@@ -278,6 +280,10 @@ async function postApprovedDraft({ url, messageType, button, statusEl, logLabel,
   const existing = await getContentForDate(today);
   if (!existing || existing.state !== CONTENT_STATES.APPROVED) {
     statusEl.textContent = 'Approve the draft first — this only works on approved content.';
+    return;
+  }
+  if (!url) {
+    statusEl.textContent = 'Set the URL for this in Settings first.';
     return;
   }
 
@@ -335,6 +341,22 @@ postStoryBtn.addEventListener('click', async () => {
     statusEl: postStoryStatusEl,
     logLabel: 'Content: 3C post-to-story attempt',
     openingMessage: 'Opening the Story creator…',
+  });
+});
+
+// 3D — post to Group, per Greg's design (2026-09-02): assisted, same as
+// 3A/3C. Unlike STORY_CREATE_URL, settings.groupUrl genuinely varies per
+// install (and per-group), same reasoning as personalPageUrl/businessPageUrl
+// — postApprovedDraft refuses to run without it set.
+postGroupBtn.addEventListener('click', async () => {
+  const settings = await getSettings();
+  await postApprovedDraft({
+    url: settings.groupUrl,
+    messageType: 'DRAFT_GROUP_POST',
+    button: postGroupBtn,
+    statusEl: postGroupStatusEl,
+    logLabel: 'Content: 3D post-to-group attempt',
+    openingMessage: 'Opening your group…',
   });
 });
 
