@@ -27,8 +27,6 @@ const statusEl = document.getElementById('status');
 const stateBadgeEl = document.getElementById('stateBadge');
 const postPersonalBtn = document.getElementById('postPersonalBtn');
 const postStatusEl = document.getElementById('postStatus');
-const postBusinessBtn = document.getElementById('postBusinessBtn');
-const postBusinessStatusEl = document.getElementById('postBusinessStatus');
 
 const today = new Date();
 let currentPlan = null;
@@ -256,47 +254,38 @@ function openFacebookHomeTab(targetUrl) {
   });
 }
 
-// Shared by 3A (personal page) and 3B (business page) — per Greg's design
-// (2026-09-01), both are assisted, not automatic: open the composer, type
-// the approved draft, and stop, so Greg attaches media/picks a background
-// and clicks Facebook's own Post button himself. Both re-check the ledger
-// directly (not whatever's currently in the box) so this can't post
-// something that was never reviewed (D6's review gate).
+// 3A — post to personal page, per Greg's design (2026-09-01): assisted, not
+// automatic. Requires the draft to actually be Approved first (D6's review
+// gate) — re-checks the ledger directly rather than trusting whatever's
+// currently in the box, so this can't post something that was never
+// reviewed.
 //
-// 3B (added 2026-09-02) reuses the exact same DRAFT_FEED_POST message and
-// composer selectors as 3A, UNVERIFIED against a real Business Page's DOM —
-// a Page's own timeline composer may not match the same aria-placeholder
-// text ("What's on your mind, {name}?") that was verified for the personal
-// profile. This is a safe first attempt, not a guess wired in blind: if the
-// selector doesn't match, waitForElement's existing timeout surfaces a
-// clean "Failed: ..." rather than crashing or silently doing nothing. If
-// Greg hits that failure live, the fix is to paste the real Business Page
-// composer DOM so a Page-specific selector can be added.
-async function postApprovedDraft({ url, button, statusEl, logLabel, openingMessage }) {
+// (3B, business page, was scaffolded to share this same flow on 2026-09-02
+// but removed the same day: Greg's Facebook account configuration doesn't
+// allow posting directly to his business page. Its button stays in
+// content.html, disabled, labeled "for future development.")
+postPersonalBtn.addEventListener('click', async () => {
   const existing = await getContentForDate(today);
   if (!existing || existing.state !== CONTENT_STATES.APPROVED) {
-    statusEl.textContent = 'Approve the draft first — this only works on approved content.';
-    return;
-  }
-  if (!url) {
-    statusEl.textContent = 'Set the URL for this in Settings first.';
+    postStatusEl.textContent = 'Approve the draft first — this only works on approved content.';
     return;
   }
 
-  button.disabled = true;
-  statusEl.textContent = openingMessage;
+  postPersonalBtn.disabled = true;
+  postStatusEl.textContent = 'Opening your profile…';
   let result;
   try {
-    const readyTab = await openFacebookHomeTab(url);
+    const settings = await getSettings();
+    const readyTab = await openFacebookHomeTab(settings.personalPageUrl);
 
-    statusEl.textContent = 'Opening the composer and typing…';
+    postStatusEl.textContent = 'Opening the composer and typing…';
     result = await new Promise((resolve) => {
       chrome.tabs.sendMessage(readyTab.id, { type: 'DRAFT_FEED_POST', text: existing.text }, (response) => {
         resolve(chrome.runtime.lastError ? { typed: false, reason: chrome.runtime.lastError.message } : response);
       });
     });
 
-    statusEl.textContent = result.typed
+    postStatusEl.textContent = result.typed
       ? 'Typed into the composer — review it, then click Post yourself on Facebook.'
       : `Failed: ${result.reason ?? 'unknown reason'}`;
   } catch (err) {
@@ -306,33 +295,11 @@ async function postApprovedDraft({ url, button, statusEl, logLabel, openingMessa
     // the log, making it much harder to diagnose. Now logged the same way
     // the success path already was.
     result = { typed: false, reason: err.message };
-    statusEl.textContent = `Failed: ${err.message}`;
+    postStatusEl.textContent = `Failed: ${err.message}`;
   } finally {
-    await log('info', logLabel, { dayKey: existing.dayKey, result });
-    button.disabled = false;
+    await log('info', 'Content: 3A post-to-personal-page attempt', { dayKey: existing.dayKey, result });
+    postPersonalBtn.disabled = false;
   }
-}
-
-postPersonalBtn.addEventListener('click', async () => {
-  const settings = await getSettings();
-  await postApprovedDraft({
-    url: settings.personalPageUrl,
-    button: postPersonalBtn,
-    statusEl: postStatusEl,
-    logLabel: 'Content: 3A post-to-personal-page attempt',
-    openingMessage: 'Opening your profile…',
-  });
-});
-
-postBusinessBtn.addEventListener('click', async () => {
-  const settings = await getSettings();
-  await postApprovedDraft({
-    url: settings.businessPageUrl,
-    button: postBusinessBtn,
-    statusEl: postBusinessStatusEl,
-    logLabel: 'Content: 3B post-to-business-page attempt',
-    openingMessage: 'Opening your business page…',
-  });
 });
 
 init();

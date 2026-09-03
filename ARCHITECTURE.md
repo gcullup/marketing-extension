@@ -556,26 +556,20 @@ field, default the verified feed URL) replaces the hardcoded constant. Only one 
 for a personal profile today, so this mainly avoids a future code edit — the real payoff comes with
 3B (business page), where choosing which Page to post to is a genuine setting.
 
-**3B (post to business page) started 2026-09-02, per Greg — scaffolding built, composer logic not
-yet verified live.** Added `businessPageUrl` to the Settings schema, deliberately left blank by
-default (unlike `personalPageUrl`, which has one real value) — Greg's own point when `personalPageUrl`
-was added: which Page to post to is genuinely per-install, with no sensible universal default.
-`sidepanel/content.js`'s duplicated-looking 3A click handler was extracted into one shared
-`postApprovedDraft({url, button, statusEl, logLabel, openingMessage})` helper, used by both the 3A
-and new 3B buttons, rather than copy-pasting the approve-gate/open-tab/send-message/log flow a
-second time. 3B refuses to run without both an approved draft and a configured `businessPageUrl`.
+**3B (post to business page) is blocked, per Greg (2026-09-02) — an account limitation, not a
+selector problem.** Started the same day with the same scaffolding as 3A (a `businessPageUrl`
+Settings field, left blank by default since which Page to post to is genuinely per-install; a "3B —
+Business Page" section on the Content page reusing 3A's open-new-tab/type/stop flow). But before
+any live test of the composer selectors, Greg confirmed his Facebook account's own configuration
+doesn't allow posting directly to his business page at all — no amount of selector-fixing changes
+that. Reverted the same day: the "Post to Business Page" button is now permanently `disabled` in
+`sidepanel/content.html` with a "for future development" label, and its click handler was removed
+from `sidepanel/content.js` entirely rather than left wired to a button nothing can ever click. The
+`businessPageUrl` Settings field stays in place (with its hint explaining why the button is
+disabled) since this is a "not right now," not a "never" — ready to pick back up if Greg's account
+configuration changes.
 
-Reuses the exact same `DRAFT_FEED_POST` message and `content/selectors.js` composer selectors as
-3A — deliberately, as a safe first attempt rather than a guessed new selector wired in blind. Those
-selectors were verified against Greg's **personal profile's** composer DOM, not a Business Page's,
-and Facebook Pages can show different composer trigger text (not necessarily "What's on your mind,
-{name}?"). If they don't match, `content/content.js`'s existing `waitForElement` timeout — the same
-mechanism already proven live by 3A's own real failure mode — surfaces a clean `Failed: ...` message
-rather than crashing or doing nothing silently, so this is safe for Greg to test as-is.
-
-**Not yet built/verified:** 3B's actual composer match on a real Business Page (pending Greg's live
-test — if it fails, the fix is pasting the real Business Page composer DOM here so a Page-specific
-selector can be added). 3C/3D (Story, group) haven't been looked at yet at all.
+**Not yet built:** 3C/3D (Story, group) haven't been looked at yet at all.
 
 ---
 

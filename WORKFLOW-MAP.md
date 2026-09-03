@@ -21,9 +21,10 @@ Update this file at the end of every working session.
   sign-off. Endpoint 3 (Step 3 — Content Creation) — **started 2026-09-01**: the day-of-week content
   generation pipeline (with content-recycling avoidance and a selectable/"Surprise me" angle
   rotation) is proven live, and 3A (post to personal page) is now proven live end to end too, after
-  two real bugs found and fixed. **3B (business page) started 2026-09-02** — scaffolding/Settings
-  field built, reusing 3A's composer logic as an unverified first attempt, pending Greg's live test.
-  3C/3D (Story, group) aren't built yet.
+  two real bugs found and fixed. **3B (business page) is blocked, not just unbuilt** — Greg's
+  Facebook account configuration doesn't allow posting directly to his business page, confirmed
+  2026-09-02; its button is disabled/"for future development," not pending a code fix. 3C/3D (Story,
+  group) aren't built yet.
 
 ---
 
@@ -1225,26 +1226,17 @@ philosophy) — a public post is far more visible/permanent than a DM.
       **Confirmed live (2026-09-01):** Greg re-tested from the Content page — a new tab opens, the
       Content page stays put, and the composer opens with the draft typed in. 3A (post to personal
       page) is now proven end to end for the first time.
-- [~] 3.3 3B — Post to business page (started 2026-09-02) — **scaffolding built, composer logic
-      unverified against a real Business Page.** Added `businessPageUrl` to Settings (blank by
-      default — no sensible universal default per Greg, unlike `personalPageUrl` which has one real
-      value). `sidepanel/content.js` gained a "3B — Business Page" section reusing 3A's exact flow:
-      refuses to run without an approved draft or without `businessPageUrl` set, opens a brand-new
-      tab (never reuses/navigates the active one, same tab-clobbering fix as 3A), sends the same
-      `DRAFT_FEED_POST` message. Extracted the shared logic from 3A's click handler into one
-      `postApprovedDraft({url, button, statusEl, logLabel, openingMessage})` helper used by both
-      buttons, rather than duplicating it.
-
-      **Deliberately reuses 3A's composer selectors as a first attempt, not a guess wired in blind:**
-      `content/selectors.js`'s `postComposerInput`/`postComposerTriggerText` were verified against
-      Greg's personal profile's composer DOM, not a Business Page's — a Page's own timeline composer
-      may show different trigger text than "What's on your mind, {name}?". If the selector doesn't
-      match, the existing `waitForElement` timeout in `content/content.js` surfaces a clean
-      `Failed: ...` (already proven safe by 3A's real failure mode) rather than crashing or silently
-      doing nothing — so this is safe to test live as-is. **Next: Greg sets `businessPageUrl` in
-      Settings, approves a draft, and tries "Post to Business Page" live** — if it fails, the fix is
-      pasting the real Business Page composer DOM so a Page-specific selector can be added, the same
-      verification discipline used for every other selector in this project.
+- [!] 3.3 3B — Post to business page — **blocked, not a build task.** Started 2026-09-02 with the
+      same scaffolding as 3A (a `businessPageUrl` Settings field, a "3B — Business Page" section on
+      the Content page reusing 3A's open-new-tab/type/stop flow), but before any live test of the
+      composer selectors, Greg confirmed his Facebook account's own configuration doesn't allow
+      posting directly to his business page at all — no selector fix or code change can work around
+      an account-level restriction. **Reverted the same day:** the "Post to Business Page" button is
+      now permanently `disabled` in `sidepanel/content.html`, labeled "for future development," and
+      its click handler was removed from `sidepanel/content.js` entirely (rather than left wired to
+      a button nothing can ever click). The `businessPageUrl` Settings field was deliberately left in
+      place, with its hint text explaining why the button is disabled — this is a genuine "not right
+      now" rather than "never," so the setting stays ready if Greg's account configuration changes.
 - [ ] 3.4 3C — Post to Story
 - [ ] 3.5 3D — Post to a group Greg runs
 - [ ] 3.6 **ENDPOINT 3 SIGNED OFF**
