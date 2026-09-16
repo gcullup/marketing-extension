@@ -270,24 +270,30 @@
       sendResponse(MKT.act.cancelFriendRequest(message.testMode));
       return true;
     }
-    if (message?.type === 'SEND_DM') {
+    if (message?.type === 'DRAFT_DM') {
+      // Step 9's greeting DM — assisted, per Greg's design (2026-09-16):
+      // opens the chat popup and types the message in, then stops (renamed
+      // from SEND_DM, which used to also simulate pressing Enter to send —
+      // removed after a real risk Greg found: a focus shift to a different
+      // chat popup mid-pause could send the greeting to the wrong person).
       // Same assumption as CLICK_PROFILE_ADD_FRIEND — caller has already
       // navigated to the target person's own profile page. Clicking Message
       // isn't gated by Test Mode (opening the popup isn't the policed
-      // action); the actual send inside sendComposedMessage is.
+      // action); there's no longer a "send" step in this flow to gate by
+      // Test Mode either, same reasoning as the post composers.
       (async () => {
         const openResult = MKT.act.clickProfileMessage();
         if (!openResult.opened) {
-          sendResponse({ sent: false, reason: openResult.reason });
+          sendResponse({ typed: false, reason: openResult.reason });
           return;
         }
         try {
           await waitForElement(MKT.selectors.messageComposerInput, 'the message composer to open');
         } catch (err) {
-          sendResponse({ sent: false, reason: err.message });
+          sendResponse({ typed: false, reason: err.message });
           return;
         }
-        sendResponse(await MKT.act.sendComposedMessage(message.text, message.testMode));
+        sendResponse(await MKT.act.typeComposedMessage(message.text));
       })();
       return true;
     }

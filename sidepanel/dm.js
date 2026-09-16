@@ -9,22 +9,26 @@ const emptyEl = document.getElementById('empty');
 const cardsEl = document.getElementById('cards');
 const refreshBtn = document.getElementById('refreshBtn');
 
-// Per Greg's design (2026-09-01): the greeting DM is NOT AI-drafted — it's
-// the fixed "Introductory message template" from Settings with {firstName}
-// substituted in. Once sent, Greg takes over the conversation directly, so
-// there's no draft-review step; this page just needs to send exactly the
-// text it previews. Assisted click, matching D6 (Send Queue's original
-// design), since messaging is the more heavily policed surface — no "Process
-// All" equivalent here unless Greg asks for one later.
+// Per Greg's design (2026-09-01, revised 2026-09-16): the greeting DM is NOT
+// AI-drafted — it's the fixed "Introductory message template" from Settings
+// with {firstName} substituted in. Assisted click throughout, matching D6
+// (Send Queue's original design) and, as of 2026-09-16, matching 3A/3C/3D's
+// "type and stop" shape too: the extension types the message and stops
+// there, Greg reviews it and presses Enter himself to actually send, then
+// confirms via "Mark as Sent" once he has (see renderCard below) — the
+// ledger is only updated on that explicit confirmation, not automatically.
 function daysSince(timestampMs, now) {
   return Math.floor((now - timestampMs) / (24 * 60 * 60 * 1000));
 }
 
-// Opens the person's real profile, sends SEND_DM (which clicks Message,
-// waits for the chat popup, types the rendered text, and — unless Test Mode
-// — presses Enter to actually send), then cleans up the tab either way.
-// Mostly mirrors send.js's sendViaProfilePage, with one deliberate
-// difference: this tab is opened ACTIVE (foreground), not background.
+// Opens the person's real profile, sends DRAFT_DM (which clicks Message,
+// waits for the chat popup, and types the rendered text in), then either
+// leaves the tab open for Greg to review/send himself, or cleans it up if
+// nothing useful ever made it to screen. Mostly mirrors send.js's
+// sendViaProfilePage, with two deliberate differences: this tab is opened
+// ACTIVE (foreground), not background, and — unlike every other
+// background-tab flow in this project — it usually does NOT get closed
+// automatically at the end (see finishLeaveOpen below).
 //
 // Real bug found live (2026-09-01), per Greg: with the tab in the
 // background (as every other profile-tab action in this project safely is —
@@ -32,13 +36,23 @@ function daysSince(timestampMs, now) {
 // failed unless Greg manually switched to the tab himself. Root cause:
 // plain element.click() (what every other background-tab action uses)
 // doesn't care whether the tab is actually focused, but
-// document.execCommand('insertText', ...) and a dispatched keyboard Enter
-// (what sendComposedMessage uses to actually type/send) apparently do —
-// Chrome only applies them for real when the tab genuinely has focus, not
-// just "is the active tab of its own position in a background window."
-// Bringing the tab to the foreground for the duration of the send, then
-// switching back to whatever Greg was doing right after, is the fix.
-function sendGreetingDm(person, text, testMode) {
+// document.execCommand('insertText', ...) does — Chrome only applies it for
+// real when the tab genuinely has focus, not just "is the active tab of its
+// own position in a background window." Bringing the tab to the foreground
+// for the duration of the type is the fix.
+//
+// Real, more serious risk found live (2026-09-16), per Greg: this used to
+// also simulate pressing Enter to actually send, right after typing. But if
+// focus shifted to a DIFFERENT chat popup in the gap between typing and that
+// simulated Enter (e.g. a new incoming-message notification stealing focus),
+// the send could land in the wrong conversation entirely — sending the
+// greeting to the wrong person. Removed the automatic send outright rather
+// than trying to detect/guard against a focus shift after the fact. Since
+// Greg now needs to actually look at the typed message and press Enter
+// himself, the tab can no longer be closed the instant a response comes
+// back either (the old behavior) — it stays open and in the foreground
+// whenever there's something on screen worth him seeing.
+function sendGreetingDm(person, text) {
   return new Promise((resolve) => {
     chrome.tabs.query({ active: true, currentWindow: true }, ([previousTab]) => {
       chrome.tabs.create({ url: person.profileUrl, active: true }, (tab) => {
@@ -46,42 +60,61 @@ function sendGreetingDm(person, text, testMode) {
         let settled = false;
         let timeoutHandle;
 
-        function finish(result) {
-          if (settled) return;
-          settled = true;
+        function cleanup() {
           chrome.tabs.onUpdated.removeListener(onUpdated);
           clearTimeout(timeoutHandle);
+        }
+
+        // Used when nothing useful ever reached the screen (the content
+        // script was unreachable, or the whole round trip timed out) —
+        // nothing for Greg to review, so close the tab and switch back to
+        // whatever he was doing, same as this project's other background-tab
+        // flows.
+        function finishAndClose(result) {
+          if (settled) return;
+          settled = true;
+          cleanup();
           chrome.tabs.remove(tabId).catch(() => {});
           if (previousTab) chrome.tabs.update(previousTab.id, { active: true }).catch(() => {});
+          resolve(result);
+        }
+
+        // Used whenever a real response came back — the chat popup is
+        // showing something worth Greg looking at, whether typing fully
+        // succeeded or only got partway. Leaves the tab open and in the
+        // foreground rather than closing out from under him.
+        function finishLeaveOpen(result) {
+          if (settled) return;
+          settled = true;
+          cleanup();
           resolve(result);
         }
 
         function onUpdated(updatedTabId, changeInfo) {
           if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
           setTimeout(() => {
-            chrome.tabs.sendMessage(tabId, { type: 'SEND_DM', text, testMode }, (response) => {
-              finish(chrome.runtime.lastError ? { sent: false, reason: chrome.runtime.lastError.message } : response);
+            chrome.tabs.sendMessage(tabId, { type: 'DRAFT_DM', text }, (response) => {
+              if (chrome.runtime.lastError) {
+                finishAndClose({ typed: false, reason: chrome.runtime.lastError.message });
+              } else {
+                finishLeaveOpen(response);
+              }
             });
           }, 1500);
         }
         chrome.tabs.onUpdated.addListener(onUpdated);
 
         // Real bug found live (2026-09-01): this single deadline covers the
-        // WHOLE round trip (page load, opening the composer, and — since
-        // sendComposedMessage now types character-by-character with a
-        // human-like pace rather than instantly — the actual typing itself),
+        // WHOLE round trip (page load, opening the composer, and the actual
+        // typing, which happens at a human-like pace rather than instantly),
         // not just page load despite the old fixed 15s value and message
-        // implying otherwise. That fixed 15s was sized for the original
-        // instant-paste flow; it started firing mid-typing and force-closing
-        // the tab the moment real pacing was added, misreported as "timed out
-        // loading their profile page" when the page had loaded fine. Scaled to
-        // the actual message length now, with a generous per-character
-        // allowance (well above the real ~35-400ms/char pace) plus a fixed
-        // buffer for page load, opening the composer, and the pre/post-send
-        // pauses in sendComposedMessage.
+        // implying otherwise. Scaled to the actual message length, with a
+        // generous per-character allowance (well above the real ~35-400ms/
+        // char pace) plus a fixed buffer for page load and opening the
+        // composer.
         const timeoutMs = 20000 + text.length * 200;
         timeoutHandle = setTimeout(
-          () => finish({ sent: false, reason: 'timed out — no response from their profile page within the expected time' }),
+          () => finishAndClose({ typed: false, reason: 'timed out — no response from their profile page within the expected time' }),
           timeoutMs
         );
       });
@@ -100,7 +133,7 @@ function renderCard(person, template, now) {
         <a class="name-link" target="_blank" rel="noopener"></a>
         <div class="card-meta"></div>
       </div>
-      <button class="sendBtn">Send Message</button>
+      <button class="sendBtn">Open &amp; Type Message</button>
     </div>
     <div class="card-preview"></div>
     <div class="card-status"></div>
@@ -116,21 +149,25 @@ function renderCard(person, template, now) {
   const sendBtn = card.querySelector('.sendBtn');
   const statusEl = card.querySelector('.card-status');
 
-  sendBtn.addEventListener('click', async () => {
-    sendBtn.disabled = true;
-    statusEl.textContent = 'Opening their profile and messaging…';
-
-    const settings = await getSettings();
-    const result = await sendGreetingDm(person, message, settings.testMode);
-    await log('info', 'DM Queue: greeting DM attempt', { name: person.name, result });
-
-    if (result.sent) {
+  // Records that Greg actually sent this himself (via the composer this
+  // page opened for him, or entirely by hand through the fallback link) —
+  // added 2026-09-16, per Greg: since sending is no longer automatic, there
+  // was no way to clear a card off the queue after handling it manually.
+  // Shown regardless of whether typing succeeded or failed partway, since
+  // either way Greg is the one who knows whether the message actually went
+  // out, not the extension.
+  function addMarkSentButton() {
+    const markSentBtn = document.createElement('button');
+    markSentBtn.className = 'markSentBtn';
+    markSentBtn.textContent = 'Mark as Sent';
+    markSentBtn.addEventListener('click', async () => {
+      markSentBtn.disabled = true;
       await markDmSent(person.id, message);
-      statusEl.textContent = 'Sent.';
+      await log('info', 'DM Queue: greeting DM marked sent (manual confirmation)', { name: person.name });
       card.remove();
       // Same fix applied to Send Queue (2026-09-01): disable every other
       // still-eligible card the moment the daily cap is actually hit, rather
-      // than only reflecting it in the summary text — otherwise clicking
+      // than only reflecting it in the summary text — otherwise confirming
       // several cards in the same sitting could cross the cap before it was
       // ever visibly enforced.
       const remaining = await refreshSummary();
@@ -140,12 +177,22 @@ function renderCard(person, template, now) {
           if (btn) btn.disabled = true;
         }
       }
-    } else if (result.reason?.startsWith('test mode')) {
-      statusEl.textContent = `Test Mode: ${result.reason}`;
-      sendBtn.disabled = false;
+    });
+    statusEl.append(' ', markSentBtn);
+  }
+
+  sendBtn.addEventListener('click', async () => {
+    sendBtn.disabled = true;
+    statusEl.textContent = 'Opening their profile and typing…';
+
+    const result = await sendGreetingDm(person, message);
+    await log('info', 'DM Queue: greeting DM draft attempt', { name: person.name, result });
+
+    statusEl.innerHTML = '';
+    if (result.typed) {
+      statusEl.append('Typed into the chat — review it, then press Enter yourself to send.');
     } else {
-      statusEl.innerHTML = '';
-      statusEl.append(`Not sent: ${result.reason ?? 'unknown reason'}. `);
+      statusEl.append(`Not typed: ${result.reason ?? 'unknown reason'}. `);
       const fallback = document.createElement('a');
       fallback.className = 'fallback-link';
       fallback.href = person.profileUrl ?? '#';
@@ -153,8 +200,9 @@ function renderCard(person, template, now) {
       fallback.rel = 'noopener';
       fallback.textContent = 'Open their profile to message them manually';
       statusEl.append(fallback);
-      sendBtn.disabled = false;
     }
+    addMarkSentButton();
+    sendBtn.disabled = false; // allow retrying the open/type step if needed
   });
 
   return card;

@@ -121,17 +121,20 @@
   // as far as Lexical's own editor model is concerned — Lexical doesn't
   // parse literal newline characters in typed text into new paragraph
   // nodes, only a real Enter keypress triggers that split. Dispatching a
-  // real Enter keydown/keyup for each '\n' (same mechanism sendComposedMessage
-  // already uses to actually SEND a DM) makes Lexical split the paragraph
+  // real Enter keydown/keyup for each '\n' (same keydown/keyup dispatch
+  // mechanism used elsewhere in this file) makes Lexical split the paragraph
   // for real; two consecutive '\n's (a blank-line paragraph gap in the
   // source text) naturally becomes two Enters in a row, leaving one empty
   // paragraph between the two real ones — exactly the visual gap Greg's
   // draft preview already showed.
   //
-  // Deliberately opt-in, defaulting to false: in the DM composer, Enter is
-  // how a message actually SENDS (no separate Send button exists there — see
-  // sendComposedMessage below), so dispatching Enter mid-typing there would
-  // prematurely send whatever had been typed so far. DM templates are
+  // Deliberately opt-in, defaulting to false: in the DM composer, Facebook's
+  // own UI treats Enter as the only way to send (no separate Send button
+  // exists there — see typeComposedMessage below), so dispatching Enter
+  // mid-typing there would prematurely send whatever had been typed so far,
+  // straight to Facebook, regardless of whether this extension separately
+  // simulates a send afterward (it no longer does — see typeComposedMessage's
+  // own comment). DM templates are
   // single-line today, but this keeps that composer's behavior unchanged
   // regardless. Only the post/Story/Group composers (where Enter creates a
   // new paragraph, not a send) opt in.
@@ -178,34 +181,28 @@
     return { typed: true };
   }
 
-  // Types the greeting DM into the chat composer and sends it. Confirmed
-  // live (2026-09-01), from Aaron Bihl's real chat popup: there is no
-  // separate Send button in this UI — pressing Enter is the only way to
-  // send, so that's simulated here. Confirmed live this reconciles
-  // correctly against the real editor and the simulated Enter actually
-  // sends. A brief pause before Enter, and another few seconds after it's
-  // sent before returning, replace what would otherwise be an instant
-  // type-send-close sequence — the caller (sidepanel/dm.js's
-  // sendGreetingDm) closes the tab as soon as this response comes back, so
-  // the pause belongs here, not in the caller.
-  MKT.act.sendComposedMessage = async function (text, testMode) {
+  // Types the greeting DM into the chat composer and stops there — per
+  // Greg's explicit design (2026-09-16): DM sending is now assisted, not
+  // automatic, the same shift 3A/3C/3D already made for post composers.
+  //
+  // This used to also simulate pressing Enter to actually send (confirmed
+  // live 2026-09-01 that this reconciles correctly against the real editor).
+  // Removed after a real, serious risk Greg identified: if focus shifted to
+  // a DIFFERENT chat popup between typing and the simulated Enter (e.g. a
+  // new incoming-message notification stealing focus during the pause
+  // before Enter), the simulated Enter could end up sending the greeting to
+  // the WRONG person's conversation instead of the intended one. There's no
+  // reliable way to verify focus hasn't moved in the gap between typing and
+  // sending, so removing the automatic send removes the failure mode
+  // outright rather than trying to detect/guard against it after the fact.
+  // Greg now reviews what got typed and presses Enter himself; the caller
+  // (sidepanel/dm.js) leaves the tab open afterward so he can do that, and
+  // only updates the ledger once he confirms (via a "Mark as Sent" button)
+  // that he actually sent it.
+  MKT.act.typeComposedMessage = async function (text) {
     const composer = document.querySelector(MKT.selectors.messageComposerInput);
-    if (!composer) return { sent: false, reason: 'message composer not found' };
-
-    const typeResult = await typeIntoLexicalEditor(composer, text);
-    if (!typeResult.typed) return { sent: false, ...typeResult };
-
-    if (testMode) {
-      await delay(3000 + Math.random() * 2000);
-      return { sent: false, reason: 'test mode — typed but not sent (check the popup, then send or clear it yourself)' };
-    }
-
-    await delay(400 + Math.random() * 500); // a beat before hitting Enter, like reviewing what was just typed
-    const enterOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
-    composer.dispatchEvent(new KeyboardEvent('keydown', enterOpts));
-    composer.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
-    await delay(3000 + Math.random() * 2000); // stay on the message a few seconds rather than closing instantly
-    return { sent: true };
+    if (!composer) return { typed: false, reason: 'message composer not found' };
+    return typeIntoLexicalEditor(composer, text);
   };
 
   // Opens the "What's on your mind?" create-post popup for Step 3's 3A

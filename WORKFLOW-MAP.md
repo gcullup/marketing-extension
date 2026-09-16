@@ -3,7 +3,7 @@
 **Purpose:** single source of truth for what is built, what is next, and what is still undecided.
 Update this file at the end of every working session.
 
-- **Last updated:** 2026-09-03
+- **Last updated:** 2026-09-16
 - **Repo location:** `C:\dev\marketing-extension` (moved off Google Drive)
 - **GitHub:** https://github.com/gcullup/marketing-extension
 - **Current phase:** Phase 1 core loop built and proven live (first real friend request sent
@@ -15,10 +15,14 @@ Update this file at the end of every working session.
   genuine forced service-worker kill specifically (see ARCHITECTURE.md hazard #2).
 - **Active endpoint:** Endpoint 1 (Step 1 — Friend Discovery) — functionally complete, validation
   pending. Endpoint 2 (Step 9 — greeting DM) — **proven live end to end 2026-09-01**: acceptance
-  detection, the (template-based, not AI-drafted) cohort query, and the actual composer-automated
-  send are all built and confirmed against real data, including a fix for the daily message cap now
-  being enforced live mid-session, not just at page load. Remaining before sign-off: 2.8 formal
-  sign-off. **Endpoint 3 (Step 3 — Content Creation) — SIGNED OFF 2026-09-02.** The day-of-week
+  detection, the (template-based, not AI-drafted) cohort query, and composer-automated typing are
+  all built and confirmed against real data, including a fix for the daily message cap now being
+  enforced live mid-session, not just at page load. **Revised 2026-09-16, per Greg:** the actual
+  send is no longer automatic — a real wrong-recipient risk (focus could shift to a different chat
+  popup between typing and a simulated Enter) meant removing auto-send entirely, matching 3A/3C/3D's
+  assisted "type and stop" shape; a new "Mark as Sent" button lets Greg confirm/dismiss a card once
+  he's actually sent it himself. Remaining before sign-off: 2.8 formal sign-off. **Endpoint 3
+  (Step 3 — Content Creation) — SIGNED OFF 2026-09-02.** The day-of-week
   generation pipeline (content-recycling avoidance, selectable/"Surprise me" angle rotation,
   code-enforced character limits) and all three working posting destinations — 3A personal page,
   3C Story, 3D group — are proven live end to end. 3B (business page) is deliberately blocked by
@@ -1001,6 +1005,44 @@ unaffected — they only ever use plain clicks, which this investigation confirm
       every loop iteration): the shared `sendThisOne`/per-card send logic now disables every other
       still-eligible card's Send button the instant a send crosses the cap, not just at page load.
       Verified the disable-all-remaining-cards logic in a live browser JS sandbox before wiring in.
+**Real, serious risk found and fixed (2026-09-16), per Greg — greeting DM sending is now assisted,
+not automatic.** Until today, `sendComposedMessage` (renamed `typeComposedMessage`) simulated
+pressing Enter right after typing to actually send the message. Greg's concern, from real observed
+behavior: if focus shifted to a *different* chat popup in the gap between typing and that simulated
+Enter — e.g. a new incoming-message notification stealing focus during the pause — the send could
+land in the wrong conversation, sending the greeting to the wrong person entirely. There's no
+reliable way to verify focus hasn't moved in that gap, so **the automatic send was removed
+outright** rather than trying to detect/guard against a focus shift after the fact — the same
+assisted "type and stop" shape 3A/3C/3D already use, now applied to DMs too.
+
+Renamed the message type `SEND_DM` → `DRAFT_DM` (`content/content.js`) to match, and
+`MKT.act.sendComposedMessage` → `typeComposedMessage` (`content/act.js`) — neither takes `testMode`
+anymore, since there's no longer a send step in this flow to gate by it (same reasoning as the post
+composers). `sidepanel/dm.js`'s `sendGreetingDm` no longer auto-closes the tab and switches focus
+back the instant a response comes in — it only does that (`finishAndClose`) when nothing useful
+ever reached the screen (content script unreachable, or a hard timeout). Any real response, success
+or a partial `insertText` failure, now leaves the tab open and in the foreground
+(`finishLeaveOpen`), since either way there's something on screen worth Greg actually looking at
+before he presses Enter himself.
+
+**Second real gap fixed the same day, per Greg:** "I am given the opportunity to click and open
+their profile to message them manually, which works fine, but then there is no way for me to
+simply click to manually remove that from the send queue." Since the DM Queue's list is a live
+computed filter over the ledger (`getDmCandidates`), not a persisted queue, there was no way to
+dismiss a card without the extension itself calling `markDmSent` — and nothing did that anymore
+now that sending isn't automatic. Added a **"Mark as Sent"** button, shown after every open/type
+attempt (success or failure alike, since only Greg knows whether the message actually went out) —
+it calls the existing `markDmSent(id, message)`, removes the card, and re-checks the daily cap the
+same way the old automatic-send success path used to. The "Send Message" button was renamed **"Open
+& Type Message"** to match what it actually does now, and stays re-enabled afterward in case Greg
+wants to retry the open/type step.
+
+**Known tradeoff, accepted as the cost of removing the wrong-recipient risk:** the daily cap
+(`countDmSentToday`) now depends on Greg actually clicking "Mark as Sent" promptly — if he types a
+message, sends it himself, and forgets to confirm, the cap and ledger won't reflect it. This mirrors
+the same trust-the-human gap 3A/3C/3D already have (the extension can't verify Greg actually clicked
+Facebook's own Post/Share button either) — accepted as consistent with the rest of the assisted-click
+design, not treated as a new gap unique to DMs.
 - [-] 2.7 Reply detection — not needed; Greg takes over the conversation manually once the greeting
       DM is sent, per the simplified design above.
 - [ ] 2.8 **ENDPOINT 2 SIGNED OFF**

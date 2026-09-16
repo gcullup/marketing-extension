@@ -401,6 +401,40 @@ Message and send it.
   "Process All," which already re-checked the cap every loop iteration but relied on the same
   underlying fix to actually stop a manual click from working around it.
 
+  **Automatic sending removed entirely (2026-09-16), per Greg — a real wrong-recipient risk, not a
+  hypothetical one.** The simulated Enter keypress that used to fire right after typing carried a
+  real risk: if focus shifted to a *different* chat popup in the gap between typing and that
+  simulated Enter — e.g. a new incoming-message notification stealing focus during the pause — the
+  send could land in the wrong conversation, sending the greeting to the wrong person entirely.
+  There's no reliable way to verify focus hasn't moved in that window, so the fix removes the
+  automatic send outright rather than trying to detect/guard against a focus shift after the fact —
+  the same assisted "type and stop" shape 3A/3C/3D already established for post composers, now
+  applied to DMs too.
+
+  `MKT.act.sendComposedMessage` (content/act.js) is now `typeComposedMessage` — it only types and
+  returns, no Enter dispatch, no `testMode` parameter (nothing left to gate). The content-script
+  message `SEND_DM` is now `DRAFT_DM` (content/content.js) to match. `sidepanel/dm.js`'s
+  `sendGreetingDm` no longer closes the tab and restores focus the instant a response arrives
+  (`finish`, the old single completion path) — it now has two: `finishAndClose` (nothing useful ever
+  reached the screen — content script unreachable, or a hard timeout) and `finishLeaveOpen` (any
+  real response, success or a partial `insertText` failure alike — the chat popup has something on
+  screen worth Greg reviewing before he presses Enter himself, so the tab stays open and foregrounded
+  rather than closing out from under him).
+
+  **Second gap closed the same day, per Greg:** with sending now always manual, there was no way to
+  dismiss a DM Queue card once Greg had actually sent it himself (via the composer this page opened,
+  or by hand through the existing "open their profile" fallback link) — the queue is a live filter
+  over the ledger (`getDmCandidates`), not a persisted list, so nothing removed a card except the
+  extension itself calling `markDmSent`, and nothing did that automatically anymore. Added a **"Mark
+  as Sent"** button, shown after every attempt regardless of outcome (only Greg knows whether the
+  message actually went out) — calls the existing `markDmSent(id, message)`, removes the card, and
+  re-runs the same daily-cap enforcement the old automatic-send success path used to. The send button
+  itself was renamed "Open & Type Message" to describe what it now actually does.
+
+  **Accepted tradeoff:** the daily cap now depends on Greg clicking "Mark as Sent" promptly after
+  actually sending — same trust-the-human gap 3A/3C/3D already carry (the extension can't verify a
+  real Facebook Post/Share click either), not a new category of risk unique to this change.
+
 ---
 
 ## Step 3 — Content Creation (started 2026-09-01)
